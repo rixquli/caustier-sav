@@ -32,7 +32,3 @@ detecter les requestes avec des reponses deja existantes et proposer les reponse
 ## Stack
 
 Blazor
-nodejs
-sqlite
-express
-bcrypt
