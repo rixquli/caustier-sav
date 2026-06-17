@@ -43,9 +43,8 @@ let migrationsDone = false;
 export async function ensureAuthMigrations() {
   if (migrationsDone) return;
   try {
-    const { getMigrations } = await import("better-auth/db");
-    const { runMigrations } = await getMigrations(auth.options);
-    await runMigrations();
+    const ctx = await auth.$context;
+    await ctx.runMigrations();
     migrationsDone = true;
     await seedDefaultUsers();
     seedFaqIfEmpty();
