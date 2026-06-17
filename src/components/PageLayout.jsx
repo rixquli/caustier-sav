@@ -3,7 +3,13 @@ export default function PageLayout({ title, description, children }) {
     <div className="page">
       <div className="page-header">
         <h1>{title}</h1>
-        {description && <p className="page-muted">{description}</p>}
+        {description && (
+          typeof description === "string" ? (
+            <p className="page-muted">{description}</p>
+          ) : (
+            <div className="page-muted">{description}</div>
+          )
+        )}
       </div>
       {children}
     </div>

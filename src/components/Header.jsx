@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FiSearch, FiUser, FiLogOut } from "react-icons/fi";
+import { FiUser, FiLogOut } from "react-icons/fi";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Header() {
@@ -13,22 +13,12 @@ export default function Header() {
         <span className="header-logo-text">Caustier</span>
       </div>
 
-      <div className="header-search">
-        <FiSearch className="header-search-icon" aria-hidden="true" />
-        <input
-          type="search"
-          className="header-search-input"
-          placeholder="Rechercher..."
-          aria-label="Rechercher"
-        />
-      </div>
-
       <div className="header-actions">
         {user && (
-          <span className="header-user-name">{user.nom}</span>
+          <span className="header-user-name">{user.displayName || user.nom}</span>
         )}
         <Link
-          href={user?.role === "admin" ? "/users" : "/compte"}
+          href={user?.role === "admin" ? "/admin/clients" : "/compte"}
           className="header-profile"
           aria-label="Profil utilisateur"
         >

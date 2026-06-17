@@ -8,24 +8,6 @@ db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
 db.exec(`
-  CREATE TABLE IF NOT EXISTS user (
-    id TEXT PRIMARY KEY,
-    name TEXT,
-    email TEXT UNIQUE,
-    emailVerified TEXT,
-    image TEXT,
-    role TEXT DEFAULT 'client',
-    nom TEXT,
-    prenom TEXT,
-    phone TEXT,
-    adresse TEXT,
-    password_hash TEXT,
-    archived INTEGER NOT NULL DEFAULT 0,
-    mustChangePassword INTEGER NOT NULL DEFAULT 0,
-    createdAt TEXT DEFAULT (datetime('now')),
-    updatedAt TEXT DEFAULT (datetime('now'))
-  );
-
   CREATE TABLE IF NOT EXISTS machines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
@@ -668,4 +650,33 @@ export function listFaqHistory(faqId) {
        ORDER BY h.created_at DESC`,
     )
     .all(faqId);
+}
+
+export function seedFaqIfEmpty() {
+  const count = db.prepare("SELECT COUNT(*) AS n FROM faq").get()?.n ?? 0;
+  if (count > 0) return;
+
+  const insert = db.prepare(
+    "INSERT INTO faq (question, reponse, categorie) VALUES (?, ?, ?)",
+  );
+  const entries = [
+    [
+      "Comment réinitialiser ma chaudière ?",
+      "Coupez l'alimentation électrique pendant 30 secondes, puis rallumez.",
+      "Panne",
+    ],
+    [
+      "Quelle est la fréquence d'entretien recommandée ?",
+      "Un entretien annuel est obligatoire pour les chaudières gaz et fioul.",
+      "Maintenance",
+    ],
+    [
+      "Ma machine affiche une erreur E03, que faire ?",
+      "L'erreur E03 indique un problème de pression d'eau. Vérifiez le manomètre.",
+      "Panne",
+    ],
+  ];
+  for (const [question, reponse, categorie] of entries) {
+    insert.run(question, reponse, categorie);
+  }
 }

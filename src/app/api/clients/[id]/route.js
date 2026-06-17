@@ -51,7 +51,7 @@ export async function PATCH(request, { params }) {
     if (resetPassword) {
       tempPassword = generateTempPassword();
       await setUserPassword(id, tempPassword);
-      updateAppUser(id, { mustChangePassword: true });
+      updateAppUser(id, { mustChangePassword: 1 });
     }
 
     const name = [prenom?.trim() ?? existing.prenom, nom?.trim() ?? existing.nom]

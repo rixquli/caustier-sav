@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { db } from "@/db/db";
+import { seedFaqIfEmpty } from "@/db/db";
 
 export const auth = betterAuth({
   database: db,
@@ -42,11 +43,12 @@ let migrationsDone = false;
 export async function ensureAuthMigrations() {
   if (migrationsDone) return;
   try {
-    // const { getMigrations } = await import("better-auth/db");
-    // const { runMigrations } = await getMigrations(auth.options);
-    // await runMigrations();
+    const { getMigrations } = await import("better-auth/db");
+    const { runMigrations } = await getMigrations(auth.options);
+    await runMigrations();
     migrationsDone = true;
     await seedDefaultUsers();
+    seedFaqIfEmpty();
   } catch (err) {
     console.error("Auth migration error:", err);
   }

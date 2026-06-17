@@ -29,7 +29,7 @@ export async function POST(request) {
     }
 
     await setUserPassword(user.id, password);
-    updateAppUser(user.id, { mustChangePassword: false });
+    updateAppUser(user.id, { mustChangePassword: 0 });
 
     return NextResponse.json({ success: true });
   } catch {

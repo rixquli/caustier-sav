@@ -1,182 +1,91 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import PageLayout from "@/components/PageLayout";
-
-function FaqEditor({ entry, onSave, onCancel }) {
-  const [question, setQuestion] = useState(entry?.question ?? "");
-  const [reponse, setReponse] = useState(entry?.reponse ?? "");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
-
-    try {
-      await onSave({ question, reponse });
-    } catch (err) {
-      setError(err.message || "Erreur.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form className="form-card" onSubmit={handleSubmit}>
-      {error && <div className="alert alert-error">{error}</div>}
-
-      <div className="form-field">
-        <label htmlFor="question">Question</label>
-        <input
-          id="question"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          required
-        />
-      </div>
-
-      <div className="form-field">
-        <label htmlFor="reponse">Réponse</label>
-        <textarea
-          id="reponse"
-          value={reponse}
-          onChange={(e) => setReponse(e.target.value)}
-          rows={4}
-          required
-        />
-      </div>
-
-      <div className="form-actions">
-        <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? "Enregistrement…" : "Enregistrer"}
-        </button>
-        {onCancel && (
-          <button type="button" className="btn btn-secondary" onClick={onCancel}>
-            Annuler
-          </button>
-        )}
-      </div>
-    </form>
-  );
-}
 
 export default function AdminFaqPage() {
   const [faq, setFaq] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [search, setSearch] = useState("");
+  const [categorie, setCategorie] = useState("");
+  const [sortDesc, setSortDesc] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [editingId, setEditingId] = useState(null);
-  const [creating, setCreating] = useState(false);
-
-  async function loadFaq() {
-    const res = await fetch("/api/faq");
-    const data = res.ok ? await res.json() : { faq: [] };
-    setFaq(data.faq ?? []);
-  }
 
   useEffect(() => {
-    loadFaq().finally(() => setLoading(false));
-  }, []);
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (categorie) params.set("categorie", categorie);
 
-  async function handleCreate({ question, reponse }) {
-    const res = await fetch("/api/faq", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, reponse }),
+    fetch(`/api/faq?${params}`)
+      .then((res) => (res.ok ? res.json() : { faq: [], categories: [] }))
+      .then((data) => {
+        setFaq(data.faq ?? []);
+        setCategories(data.categories ?? []);
+      })
+      .finally(() => setLoading(false));
+  }, [search, categorie]);
+
+  const sorted = useMemo(() => {
+    return [...faq].sort((a, b) => {
+      const da = new Date(a.updated_at).getTime();
+      const db = new Date(b.updated_at).getTime();
+      return sortDesc ? db - da : da - db;
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    setCreating(false);
-    await loadFaq();
-  }
-
-  async function handleUpdate(id, { question, reponse }) {
-    const res = await fetch(`/api/faq/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, reponse }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    setEditingId(null);
-    await loadFaq();
-  }
-
-  async function handleDelete(id) {
-    if (!confirm("Supprimer cette entrée ?")) return;
-    await fetch(`/api/faq/${id}`, { method: "DELETE" });
-    await loadFaq();
-  }
+  }, [faq, sortDesc]);
 
   return (
-    <PageLayout
-      title="Gestion FAQ"
-      description="Créez et modifiez les questions fréquentes."
-    >
-      {!creating && (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            setCreating(true);
-            setEditingId(null);
-          }}
-        >
-          Ajouter une question
-        </button>
-      )}
-
-      {creating && (
-        <div className="page-section">
-          <h2>Nouvelle question</h2>
-          <FaqEditor onSave={handleCreate} onCancel={() => setCreating(false)} />
+    <PageLayout title="Gestion FAQ" description="Base de connaissances et questions fréquentes.">
+      <div className="admin-demandes-header">
+        <div className="filters-row">
+          <div className="form-field search-field">
+            <input type="search" placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          <div className="form-field">
+            <select value={categorie} onChange={(e) => setCategorie(e.target.value)}>
+              <option value="">Toutes les catégories</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      )}
+        <Link href="/admin/faq/new" className="btn btn-primary">Nouvelle entrée</Link>
+      </div>
 
       {loading ? (
         <p className="page-muted">Chargement…</p>
-      ) : faq.length === 0 ? (
-        <div className="page-card">
-          <p>Aucune entrée FAQ.</p>
-        </div>
+      ) : sorted.length === 0 ? (
+        <div className="empty-state"><p>Aucune entrée FAQ.</p></div>
       ) : (
-        <ul className="faq-admin-list">
-          {faq.map((entry) => (
-            <li key={entry.id} className="faq-admin-item">
-              {editingId === entry.id ? (
-                <FaqEditor
-                  entry={entry}
-                  onSave={(data) => handleUpdate(entry.id, data)}
-                  onCancel={() => setEditingId(null)}
-                />
-              ) : (
-                <>
-                  <h3>{entry.question}</h3>
-                  <p>{entry.reponse}</p>
-                  <div className="form-actions">
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        setEditingId(entry.id);
-                        setCreating(false);
-                      }}
-                    >
-                      Modifier
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(entry.id)}
-                    >
-                      Supprimer
-                    </button>
-                  </div>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Catégorie</th>
+                <th>
+                  <button type="button" className="table-sort-btn" onClick={() => setSortDesc((v) => !v)}>
+                    Modifiée le {sortDesc ? "↓" : "↑"}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((entry) => (
+                <tr key={entry.id}>
+                  <td>
+                    <Link href={`/admin/faq/${entry.id}`} className="table-link">
+                      {entry.question}
+                    </Link>
+                  </td>
+                  <td>{entry.categorie || "—"}</td>
+                  <td>{new Date(entry.updated_at).toLocaleDateString("fr-FR")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </PageLayout>
   );

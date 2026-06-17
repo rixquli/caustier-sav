@@ -63,8 +63,8 @@ export async function POST(request) {
       phone: phone?.trim() || null,
       adresse: adresse?.trim() || null,
       role: "client",
-      mustChangePassword: true,
-      archived: false,
+      mustChangePassword: 1,
+      archived: 0,
       name: displayName || nom.trim(),
     });
 
