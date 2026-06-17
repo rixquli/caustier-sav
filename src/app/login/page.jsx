@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "@/lib/auth-client";
 
 export default function Login() {
   const router = useRouter();
@@ -22,20 +23,24 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: mailValue.trim(), password }),
+      const result = await signIn.email({
+        email: mailValue.trim(),
+        password,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Identifiants incorrects.");
+      if (result.error) {
+        setError(result.error.message || "Identifiants incorrects.");
         return;
       }
 
-      router.push("/");
+      const meRes = await fetch("/api/me");
+      const meData = meRes.ok ? await meRes.json() : null;
+
+      if (meData?.user?.mustChangePassword) {
+        router.push("/compte/changer-mot-de-passe");
+      } else {
+        router.push("/");
+      }
       router.refresh();
     } catch {
       setError("Impossible de contacter le serveur.");
@@ -62,7 +67,7 @@ export default function Login() {
             )}
 
             <div className="field">
-              <label htmlFor="log-email">Identifiant / Email</label>
+              <label htmlFor="log-email">Email</label>
               <input
                 type="email"
                 id="log-email"
@@ -87,11 +92,7 @@ export default function Login() {
               />
             </div>
 
-            <button
-              type="submit"
-              className="btn btn-auth"
-              disabled={loading}
-            >
+            <button type="submit" className="btn btn-auth" disabled={loading}>
               {loading ? "Connexion…" : "Se connecter"}
             </button>
           </form>

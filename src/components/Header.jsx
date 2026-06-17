@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FiSearch, FiUser, FiLogOut } from "react-icons/fi";
 import { useAuth } from "@/context/AuthContext";
 
@@ -26,13 +27,13 @@ export default function Header() {
         {user && (
           <span className="header-user-name">{user.nom}</span>
         )}
-        <button
-          type="button"
+        <Link
+          href={user?.role === "admin" ? "/users" : "/compte"}
           className="header-profile"
           aria-label="Profil utilisateur"
         >
           <FiUser className="header-profile-icon" aria-hidden="true" />
-        </button>
+        </Link>
         <button
           type="button"
           className="header-profile"

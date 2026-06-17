@@ -1,68 +1,27 @@
 import { RxDashboard } from "react-icons/rx";
 import {
   FiUsers,
-  FiSettings,
   FiFileText,
   FiUser,
   FiPlusCircle,
-  FiBarChart2,
+  FiHelpCircle,
 } from "react-icons/fi";
 
-export const ADMIN_ROUTES = ["/users", "/settings", "/admin"];
+export const ADMIN_ROUTES = ["/admin"];
 
 export const adminNav = [
-  {
-    label: "Tableau de bord",
-    icon: RxDashboard,
-    href: "/",
-  },
-  {
-    label: "Statistiques",
-    icon: FiBarChart2,
-    href: "/admin/stats",
-  },
-  {
-    label: "Utilisateurs",
-    icon: FiUsers,
-    children: [
-      { href: "/users", label: "Liste" },
-      { href: "/users/new", label: "Ajouter" },
-    ],
-  },
-  {
-    label: "Paramètres",
-    icon: FiSettings,
-    children: [
-      { href: "/settings", label: "Général" },
-      { href: "/settings/security", label: "Sécurité" },
-    ],
-  },
+  { label: "Tableau de bord", icon: RxDashboard, href: "/" },
+  { label: "Demandes SAV", icon: FiFileText, href: "/admin/demandes" },
+  { label: "Clients", icon: FiUsers, href: "/admin/clients" },
+  { label: "FAQ", icon: FiHelpCircle, href: "/admin/faq" },
 ];
 
 export const clientNav = [
-  {
-    label: "Tableau de bord",
-    icon: RxDashboard,
-    href: "/",
-  },
-  {
-    label: "Mes demandes",
-    icon: FiFileText,
-    href: "/demandes",
-  },
-  {
-    label: "Mon compte",
-    icon: FiUser,
-    children: [
-      { href: "/compte", label: "Profil" },
-      { href: "/compte/factures", label: "Factures" },
-    ],
-  },
-  {
-    label: "Nouvelle demande",
-    icon: FiPlusCircle,
-    href: "/demandes/nouvelle",
-  },
+  { label: "Accueil", icon: RxDashboard, href: "/" },
+  { label: "Mes demandes", icon: FiFileText, href: "/demandes" },
+  { label: "Nouvelle demande", icon: FiPlusCircle, href: "/demandes/nouvelle" },
+  { label: "FAQ", icon: FiHelpCircle, href: "/faq" },
+  { label: "Mon profil", icon: FiUser, href: "/compte" },
 ];
 
 export function getNavForRole(role) {
@@ -78,11 +37,12 @@ export function isNavItemGroup(item) {
 }
 
 export function isLinkActive(pathname, href) {
-  return pathname === href;
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function getActiveChildHref(pathname, children) {
-  return children.find(({ href }) => href === pathname)?.href ?? null;
+  return children.find(({ href }) => isLinkActive(pathname, href))?.href ?? null;
 }
 
 export function isAdminRoute(pathname) {

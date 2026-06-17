@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { signOut as authSignOut } from "@/lib/auth-client";
 
 const AuthContext = createContext(null);
 
@@ -17,13 +18,22 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function logout() {
-    await fetch("/api/logout", { method: "POST" });
+    await authSignOut();
     setUser(null);
     window.location.href = "/login";
   }
 
+  function refreshUser() {
+    return fetch("/api/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        setUser(data?.user ?? null);
+        return data?.user ?? null;
+      });
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, logout }}>
+    <AuthContext.Provider value={{ user, loading, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

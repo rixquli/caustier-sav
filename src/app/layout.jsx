@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Caustier",
-  description: "Caustier - Gestion des utilisateurs",
+  title: "Caustier SAV",
+  description: "Plateforme de gestion des demandes SAV Caustier",
 };
 
 export default function RootLayout({ children }) {
