@@ -108,6 +108,19 @@ async function seedDefaultUsers() {
       archived: 0,
     },
   });
+
+  await seedDefaultUser({
+    email: "assistant-ia@internal.caustier",
+    password: "assistant-ia-no-login",
+    name: "Assistant IA",
+    fields: {
+      role: "admin",
+      nom: "IA",
+      prenom: "Assistant",
+      mustChangePassword: 0,
+      archived: 0,
+    },
+  });
 }
 
 async function seedDefaultUser({ email, password, name, fields }) {

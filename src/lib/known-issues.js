@@ -26,11 +26,10 @@ export function getKnownIssues() {
   return loadKnownIssues();
 }
 
-export function buildModelPrompt(problemText) {
-  const knownIssues = getKnownIssues();
+function buildIssueMatchPrompt(problemText, entries) {
   const lines = [
     "Voici une liste de problèmes connus avec leur numéro :",
-    ...knownIssues.map((issue) => `${issue.id}: ${issue.question}`),
+    ...entries.map((entry) => `${entry.id}: ${entry.question}`),
     "",
     "Pour chaque nouvelle question, renvoie uniquement le numéro du problème correspondant.",
     "Si aucune réponse connue ne correspond, renvoie seulement 0.",
@@ -43,6 +42,14 @@ export function buildModelPrompt(problemText) {
   ];
 
   return lines.join("\n");
+}
+
+export function buildModelPrompt(problemText) {
+  return buildIssueMatchPrompt(problemText, getKnownIssues());
+}
+
+export function buildFaqMatchPrompt(problemText, faqEntries) {
+  return buildIssueMatchPrompt(problemText, faqEntries);
 }
 
 export function parseModelResponse(responseText) {

@@ -148,7 +148,9 @@ export default function AdminDashboard({ user }) {
     const actives = demandes.filter((d) => ACTIVE_STATUSES.includes(d.status));
 
     const resolved = demandes.filter((d) => d.resolved_at);
-    const resolutionDays = resolved.map((d) => daysBetween(d.resolved_at, d.created_at));
+    const resolutionDays = resolved.map((d) =>
+      daysBetween(d.resolved_at, d.created_at),
+    );
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -157,10 +159,13 @@ export default function AdminDashboard({ user }) {
       (d) => new Date(d.resolved_at).getTime() >= startOfMonth.getTime(),
     ).length;
 
-    const openAges = actives.map((d) => (now - new Date(d.created_at).getTime()) / DAY_MS);
+    const openAges = actives.map(
+      (d) => (now - new Date(d.created_at).getTime()) / DAY_MS,
+    );
 
     const late = actives.filter(
-      (d) => (now - new Date(d.created_at).getTime()) / DAY_MS > LATE_THRESHOLD_DAYS,
+      (d) =>
+        (now - new Date(d.created_at).getTime()) / DAY_MS > LATE_THRESHOLD_DAYS,
     ).length;
 
     const byStatus = Object.keys(DEMANDE_STATUTS).map((key) => ({
@@ -200,7 +205,11 @@ export default function AdminDashboard({ user }) {
             Tableau de bord
             <FiInfo
               aria-hidden="true"
-              style={{ marginLeft: "0.5rem", color: "#94a3b8", verticalAlign: "middle" }}
+              style={{
+                marginLeft: "0.5rem",
+                color: "#94a3b8",
+                verticalAlign: "middle",
+              }}
               size={18}
             />
           </h1>
@@ -218,17 +227,20 @@ export default function AdminDashboard({ user }) {
       </div>
 
       <div className="dashboard-stats">
-        <Link href="/admin/demandes?open=1" className="stat-card stat-card--link">
+        <Link
+          href="/admin/demandes?open=1"
+          className="stat-card stat-card--link"
+        >
           <span className="stat-card-label">Requêtes ouvertes</span>
           <span className="stat-card-value">{metrics.open}</span>
         </Link>
-        <Link
+        {/* <Link
           href="/admin/demandes?late=1&open=1"
           className={`stat-card stat-card--link${metrics.late ? " stat-card--danger" : ""}`}
         >
           <span className="stat-card-label">En retard</span>
           <span className="stat-card-value">{metrics.late}</span>
-        </Link>
+        </Link> */}
         <Link
           href="/admin/demandes?unassigned=1&open=1"
           className={`stat-card stat-card--link${metrics.unassigned ? " stat-card--warning" : ""}`}
@@ -236,20 +248,20 @@ export default function AdminDashboard({ user }) {
           <span className="stat-card-label">Non assignées</span>
           <span className="stat-card-value">{metrics.unassigned}</span>
         </Link>
-        <Link
+        {/* <Link
           href="/admin/demandes?type=SAV&open=1"
           className="stat-card stat-card--link stat-card--danger"
         >
           <span className="stat-card-label">SAV en cours</span>
           <span className="stat-card-value">{metrics.sav}</span>
-        </Link>
-        <Link
+        </Link> */}
+        {/* <Link
           href="/admin/demandes?type=IA&open=1"
           className="stat-card stat-card--link stat-card--accent"
         >
           <span className="stat-card-label">Demandes IA</span>
           <span className="stat-card-value">{metrics.ia}</span>
-        </Link>
+        </Link> */}
         <Link
           href="/admin/demandes?status=resolue&open=0"
           className="stat-card stat-card--link stat-card--success"
@@ -278,8 +290,12 @@ export default function AdminDashboard({ user }) {
           <span className="stat-card-sub">depuis le 1er du mois</span>
         </div>
         <div className="stat-card">
-          <span className="stat-card-label">Âge moyen des requêtes ouvertes</span>
-          <span className="stat-card-value">{metrics.avgOpenAge.toFixed(1)} j</span>
+          <span className="stat-card-label">
+            Âge moyen des requêtes ouvertes
+          </span>
+          <span className="stat-card-value">
+            {metrics.avgOpenAge.toFixed(1)} j
+          </span>
           <span className="stat-card-sub">depuis leur création</span>
         </div>
       </div>
@@ -320,7 +336,10 @@ export default function AdminDashboard({ user }) {
           <div className="dashboard-panel-header">
             <div>
               <h2>Priorités haute et critique</h2>
-              <p>Demandes actives triées du niveau le plus urgent au moins urgent.</p>
+              <p>
+                Demandes actives triées du niveau le plus urgent au moins
+                urgent.
+              </p>
             </div>
             <Link href="/admin/demandes" className="table-link">
               Voir tout

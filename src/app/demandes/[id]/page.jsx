@@ -4,10 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import PageLayout from "@/components/PageLayout";
 import { useAuth } from "@/context/AuthContext";
 import { getPrioriteLabel, getStatutInfo, getTypeLabel } from "@/lib/constants";
-import {
-  getClientViewMessageLabel,
-  isClientMessage,
-} from "@/lib/messages";
+import { getClientViewMessageLabel, isClientMessage } from "@/lib/messages";
 
 function formatDateTime(dateStr) {
   if (!dateStr) return "—";
@@ -78,6 +75,12 @@ export default function DemandeDetailPage({ params }) {
     }
   }
 
+  function handleKeyDown(e) {
+    if (e.key == "Enter" && !e.shiftKey) {
+      handleSend(e);
+    }
+  }
+
   if (loading)
     return (
       <PageLayout title="Demande">
@@ -102,7 +105,9 @@ export default function DemandeDetailPage({ params }) {
             <h2>Messages</h2>
             <div className="chat-thread" ref={chatThreadRef}>
               {messages.length === 0 ? (
-                <p className="page-muted chat-empty">Aucun message pour le moment.</p>
+                <p className="page-muted chat-empty">
+                  Aucun message pour le moment.
+                </p>
               ) : (
                 messages.map((msg) => {
                   const fromClient = isClientMessage(msg, demande.user_id);
@@ -136,6 +141,7 @@ export default function DemandeDetailPage({ params }) {
                 <textarea
                   value={contenu}
                   onChange={(e) => setContenu(e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(e)}
                   rows={3}
                   placeholder="Votre message…"
                   required

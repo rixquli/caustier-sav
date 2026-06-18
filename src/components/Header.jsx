@@ -15,6 +15,7 @@ import {
 } from "react-icons/fi";
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
+import NotificationBell from "@/components/NotificationBell";
 
 const EMPTY_RESULTS = { faq: [], demandes: [], clients: [] };
 
@@ -238,6 +239,7 @@ export default function Header({ onToggleNav, navOpen }) {
       </div>
 
       <div className="header-actions">
+        {user && <NotificationBell isAdmin={isAdmin} />}
         {user && (
           <div className="header-user-menu" ref={userMenuRef}>
             <button

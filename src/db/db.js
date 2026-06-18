@@ -1,5 +1,6 @@
 import path from "path";
 import Database from "better-sqlite3";
+import { buildStatusChangeMessage } from "@/lib/notifications";
 
 const dbPath = path.join(process.cwd(), "profile.db");
 
@@ -108,6 +109,17 @@ function initSchema(database) {
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (faq_id) REFERENCES faq(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS notifications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    demande_id INTEGER,
+    message TEXT NOT NULL,
+    read_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (demande_id) REFERENCES demandes(id) ON DELETE CASCADE
+  );
 `);
 
   migrateLegacyData(database);
@@ -214,6 +226,66 @@ export function listAdmins() {
       `SELECT id, name, nom, prenom, email FROM user WHERE role = 'admin' ORDER BY nom, name`,
     )
     .all();
+}
+
+export function createNotification({ userId, type, demandeId, message }) {
+  const result = db
+    .prepare(
+      `INSERT INTO notifications (user_id, type, demande_id, message)
+       VALUES (?, ?, ?, ?)`,
+    )
+    .run(userId, type, demandeId ?? null, message);
+  return db
+    .prepare("SELECT * FROM notifications WHERE id = ?")
+    .get(result.lastInsertRowid);
+}
+
+export function notifyAdmins({ type, demandeId, message, excludeUserId = null }) {
+  const admins = listAdmins();
+  for (const admin of admins) {
+    if (excludeUserId && admin.id === excludeUserId) continue;
+    createNotification({ userId: admin.id, type, demandeId, message });
+  }
+}
+
+export function listNotificationsForUser(userId, limit = 30) {
+  return db
+    .prepare(
+      `SELECT * FROM notifications
+       WHERE user_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?`,
+    )
+    .all(userId, limit);
+}
+
+export function countUnreadNotifications(userId) {
+  return (
+    db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM notifications WHERE user_id = ? AND read_at IS NULL",
+      )
+      .get(userId)?.n ?? 0
+  );
+}
+
+export function markNotificationRead(id, userId) {
+  const existing = db
+    .prepare("SELECT * FROM notifications WHERE id = ? AND user_id = ?")
+    .get(id, userId);
+  if (!existing) return null;
+  if (!existing.read_at) {
+    db.prepare(
+      "UPDATE notifications SET read_at = datetime('now') WHERE id = ?",
+    ).run(id);
+  }
+  return db.prepare("SELECT * FROM notifications WHERE id = ?").get(id);
+}
+
+export function markAllNotificationsRead(userId) {
+  db.prepare(
+    "UPDATE notifications SET read_at = datetime('now') WHERE user_id = ? AND read_at IS NULL",
+  ).run(userId);
 }
 
 export function updateAppUser(id, fields) {
@@ -386,6 +458,15 @@ export function listAllDemandes() {
   return db.prepare(`${DEMANDE_SELECT} ORDER BY d.created_at DESC`).all();
 }
 
+export const AI_ASSISTANT_EMAIL = "assistant-ia@internal.caustier";
+
+export function getAiAssistantUserId() {
+  const user = db
+    .prepare("SELECT id FROM user WHERE email = ?")
+    .get(AI_ASSISTANT_EMAIL);
+  return user?.id ?? null;
+}
+
 export function createDemande({
   userId,
   machineId,
@@ -419,10 +500,30 @@ export function createDemande({
     details: { titre, type, priorite },
     isPublic: true,
   });
+
+  notifyAdmins({
+    type: "nouvelle_demande",
+    demandeId: demande.id,
+    message: `Nouvelle demande #${demande.id} : ${titre}`,
+    excludeUserId: actorId,
+  });
+
+  queueAiAnalysis(demande);
+
   return demande;
 }
 
-export function updateDemande(id, fields, actorId) {
+function queueAiAnalysis(demande) {
+  import("@/lib/ai-assistant")
+    .then(({ analyzeDemandeForKnownSolution }) =>
+      analyzeDemandeForKnownSolution(demande),
+    )
+    .catch((error) => {
+      console.error("Analyse IA après création de demande:", error);
+    });
+}
+
+export function updateDemande(id, fields, actorId, { skipNotifications = false } = {}) {
   const existing = getDemandeById(id);
   if (!existing) return null;
 
@@ -482,6 +583,15 @@ export function updateDemande(id, fields, actorId) {
         details: { from: existing.status, to: updates.status },
         isPublic: true,
       });
+
+      if (!skipNotifications) {
+        createNotification({
+          userId: existing.user_id,
+          type: "statut_change",
+          demandeId: id,
+          message: `Demande #${id} · ${buildStatusChangeMessage(existing.status, updates.status)}`,
+        });
+      }
     } else {
       logActivity({
         demandeId: id,
@@ -546,18 +656,37 @@ export function addMessage({ demandeId, userId, contenu }) {
   });
 
   const user = findAppUserById(userId);
+  const demande = getDemandeById(demandeId);
+
   if (user?.role === "admin") {
-    const demande = getDemandeById(demandeId);
     if (demande?.status === "nouvelle") {
-      updateDemande(demandeId, { status: "en_cours" }, userId);
+      updateDemande(
+        demandeId,
+        { status: "en_cours" },
+        userId,
+        { skipNotifications: true },
+      );
     }
     db.prepare("UPDATE demandes SET read_by_client = 0 WHERE id = ?").run(
       demandeId,
     );
+
+    createNotification({
+      userId: demande.user_id,
+      type: "reponse_admin",
+      demandeId,
+      message: `Nouvelle réponse sur la demande #${demandeId} : ${demande.titre}`,
+    });
   } else {
     db.prepare("UPDATE demandes SET read_by_admin = 0 WHERE id = ?").run(
       demandeId,
     );
+
+    notifyAdmins({
+      type: "reponse_client",
+      demandeId,
+      message: `Réponse client sur la demande #${demandeId} : ${demande.titre}`,
+    });
   }
 
   return getMessageById(result.lastInsertRowid);

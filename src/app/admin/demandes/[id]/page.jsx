@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FiArrowLeft, FiLock, FiTrash2, FiUserCheck } from "react-icons/fi";
@@ -15,6 +15,11 @@ import {
   getTypeBadge,
   getTypeLabel,
 } from "@/lib/constants";
+import {
+  getAdminViewMessageLabel,
+  isAdminOwnMessage,
+  isClientMessage,
+} from "@/lib/messages";
 
 function formatDateTime(dateStr) {
   if (!dateStr) return "—";
@@ -67,10 +72,19 @@ export default function AdminDemandeDetailPage({ params }) {
   const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
+  const chatThreadRef = useRef(null);
 
   useEffect(() => {
     params.then((p) => setId(p.id));
   }, [params]);
+
+  useEffect(() => {
+    const thread = chatThreadRef.current;
+    if (!thread) return;
+    requestAnimationFrame(() => {
+      thread.scrollTop = thread.scrollHeight;
+    });
+  }, [messages]);
 
   async function load() {
     if (!id) return;
@@ -168,26 +182,19 @@ export default function AdminDemandeDetailPage({ params }) {
     }
   }
 
-  const timeline = useMemo(() => {
-    const events = [
-      ...activity.map((a) => ({
-        id: `a${a.id}`,
-        kind: "activity",
-        at: a.created_at,
-        author: personName([a.user_prenom, a.user_nom], a.user_name),
-        text: formatActivity(a),
-      })),
-      ...messages.map((m) => ({
-        id: `m${m.id}`,
-        kind: "message",
-        at: m.created_at,
-        author: personName([m.auteur_prenom, m.auteur_nom], m.auteur_name),
-        admin: m.auteur_role === "admin",
-        text: m.contenu,
-      })),
-    ];
-    return events.sort((x, y) => new Date(x.at) - new Date(y.at));
-  }, [activity, messages]);
+  const timeline = useMemo(
+    () =>
+      activity
+        .filter((a) => a.action !== "message")
+        .map((a) => ({
+          id: a.id,
+          at: a.created_at,
+          author: personName([a.user_prenom, a.user_nom], a.user_name),
+          text: formatActivity(a),
+        }))
+        .sort((x, y) => new Date(x.at) - new Date(y.at)),
+    [activity],
+  );
 
   if (loading) {
     return (
@@ -295,6 +302,62 @@ export default function AdminDemandeDetailPage({ params }) {
             </div>
           </section>
 
+          <section className="page-card customer-messages-card chat-panel">
+            <h2>Messages</h2>
+            <div className="chat-thread" ref={chatThreadRef}>
+              {messages.length === 0 ? (
+                <p className="page-muted chat-empty">
+                  Aucun message pour le moment.
+                </p>
+              ) : (
+                messages.map((msg) => {
+                  const fromAdmin = !isClientMessage(msg, demande.user_id);
+                  const isOwn = isAdminOwnMessage(msg, user);
+                  const showAuthor = !isOwn;
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`chat-row${fromAdmin && isOwn ? " chat-row--mine" : " chat-row--theirs"}`}
+                    >
+                      <div className="chat-bubble-stack">
+                        {showAuthor && (
+                          <span className="chat-bubble-author">
+                            {getAdminViewMessageLabel(msg, demande, user)}
+                          </span>
+                        )}
+                        <div className="chat-bubble">{msg.contenu}</div>
+                        <time
+                          className="chat-bubble-time"
+                          dateTime={msg.created_at}
+                        >
+                          {formatDateTime(msg.created_at)}
+                        </time>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            {!isClosed && (
+              <form className="chat-composer" onSubmit={handleMessage}>
+                <textarea
+                  value={contenu}
+                  onChange={(e) => setContenu(e.target.value)}
+                  rows={3}
+                  placeholder="Répondre au client…"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={sending}
+                >
+                  {sending ? "Envoi…" : "Envoyer"}
+                </button>
+              </form>
+            )}
+          </section>
+
           <section className="page-card">
             <h2>Suivi</h2>
             {timeline.length === 0 ? (
@@ -304,46 +367,21 @@ export default function AdminDemandeDetailPage({ params }) {
                 {timeline.map((ev) => (
                   <li key={ev.id} className="timeline-item">
                     <div className="timeline-marker">
-                      <span
-                        className={`timeline-dot${ev.kind === "activity" ? " timeline-dot--muted" : ""}`}
-                      />
+                      <span className="timeline-dot timeline-dot--muted" />
                       <span className="timeline-line" />
                     </div>
                     <div className="timeline-body">
                       <div className="timeline-head">
                         <span className="timeline-author">{ev.author}</span>
-                        <span className="timeline-date">{formatDateTime(ev.at)}</span>
+                        <span className="timeline-date">
+                          {formatDateTime(ev.at)}
+                        </span>
                       </div>
-                      {ev.kind === "activity" ? (
-                        <p className="timeline-text">{ev.text}</p>
-                      ) : (
-                        <div
-                          className={`timeline-message${ev.admin ? " timeline-message--admin" : ""}`}
-                        >
-                          <p className="timeline-text">{ev.text}</p>
-                        </div>
-                      )}
+                      <p className="timeline-text">{ev.text}</p>
                     </div>
                   </li>
                 ))}
               </ul>
-            )}
-
-            {!isClosed && (
-              <form className="message-form" onSubmit={handleMessage}>
-                <textarea
-                  value={contenu}
-                  onChange={(e) => setContenu(e.target.value)}
-                  rows={3}
-                  placeholder="Ajouter un message…"
-                  required
-                />
-                <div className="form-actions">
-                  <button type="submit" className="btn btn-primary" disabled={sending}>
-                    {sending ? "Envoi…" : "Envoyer"}
-                  </button>
-                </div>
-              </form>
             )}
           </section>
         </div>
