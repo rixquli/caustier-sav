@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiPlus } from "react-icons/fi";
 import AdminCreateDemandeModal from "@/components/AdminCreateDemandeModal";
-import AdminDemandeFilters, { filterDemandes } from "@/components/AdminDemandeFilters";
+import AdminDemandeFilters, {
+  filterDemandes,
+} from "@/components/AdminDemandeFilters";
 import AdminDemandeTable from "@/components/AdminDemandeTable";
 
 const DEFAULT_FILTERS = {
@@ -29,9 +31,13 @@ export default function AdminDemandesPage() {
       fetch("/api/demandes/meta"),
       fetch("/api/clients"),
     ]);
-    const demandesData = demandesRes.ok ? await demandesRes.json() : { demandes: [] };
+    const demandesData = demandesRes.ok
+      ? await demandesRes.json()
+      : { demandes: [] };
     const metaData = metaRes.ok ? await metaRes.json() : { admins: [] };
-    const clientsData = clientsRes.ok ? await clientsRes.json() : { clients: [] };
+    const clientsData = clientsRes.ok
+      ? await clientsRes.json()
+      : { clients: [] };
     setDemandes(demandesData.demandes ?? []);
     setAdmins(metaData.admins ?? []);
     setClients(clientsData.clients ?? []);
@@ -55,25 +61,46 @@ export default function AdminDemandesPage() {
       <div className="admin-demandes-header">
         <div>
           <h1>Requêtes clients</h1>
-          <p className="page-muted">Liste et suivi de toutes les demandes SAV.</p>
+          <p className="page-muted">
+            Liste et suivi de toutes les demandes SAV.
+          </p>
         </div>
-        <button type="button" className="btn btn-primary btn-new-request" onClick={() => setShowModal(true)}>
+        <button
+          type="button"
+          className="btn btn-primary btn-new-request"
+          onClick={() => setShowModal(true)}
+        >
           <FiPlus aria-hidden="true" />
           Nouvelle requête
         </button>
       </div>
 
-      <AdminDemandeFilters filters={filters} onChange={setFilters} clients={clients} />
+      <AdminDemandeFilters
+        filters={filters}
+        onChange={setFilters}
+        clients={clients}
+      />
 
       {loading ? (
         <p className="page-muted">Chargement…</p>
       ) : (
         <>
-          <p className="demandes-count">{filtered.length} requête{filtered.length !== 1 ? "s" : ""}</p>
+          <p className="demandes-count">
+            {filtered.length} requête{filtered.length !== 1 ? "s" : ""}
+          </p>
           <AdminDemandeTable
             demandes={filtered}
+            clients={clients}
+            admins={admins}
             sortDesc={sortDesc}
             onToggleSort={() => setSortDesc((v) => !v)}
+            onUpdated={(updated) => {
+              setDemandes((prev) =>
+                prev.map((demande) =>
+                  demande.id === updated.id ? updated : demande,
+                ),
+              );
+            }}
           />
         </>
       )}

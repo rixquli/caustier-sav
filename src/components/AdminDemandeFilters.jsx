@@ -7,7 +7,11 @@ import {
   DEMANDE_TYPES,
 } from "@/lib/constants";
 
-export default function AdminDemandeFilters({ filters, onChange, clients = [] }) {
+export default function AdminDemandeFilters({
+  filters,
+  onChange,
+  clients = [],
+}) {
   function set(key, value) {
     onChange({ ...filters, [key]: value });
   }
@@ -16,48 +20,73 @@ export default function AdminDemandeFilters({ filters, onChange, clients = [] })
     <div className="filters-panel">
       <div className="filters-row">
         <div className="filter-search">
-          <FiSearch className="filter-search-icon" aria-hidden="true" />
-          <input
-            type="search"
-            placeholder="Recherche"
-            value={filters.search}
-            onChange={(e) => set("search", e.target.value)}
-          />
+          <label>Recherche</label>
+          <div>
+            <FiSearch className="filter-search-icon" aria-hidden="true" />
+            <input
+              type="search"
+              placeholder="Recherche"
+              value={filters.search}
+              onChange={(e) => set("search", e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="filter-select-wrap">
           <label htmlFor="filter-statut">Statut</label>
-          <select id="filter-statut" value={filters.status} onChange={(e) => set("status", e.target.value)}>
+          <select
+            id="filter-statut"
+            value={filters.status}
+            onChange={(e) => set("status", e.target.value)}
+          >
             <option value="">Tous</option>
             {Object.entries(DEMANDE_STATUTS).map(([value, info]) => (
-              <option key={value} value={value}>{info.label}</option>
+              <option key={value} value={value}>
+                {info.label}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="filter-select-wrap">
           <label htmlFor="filter-type">Type</label>
-          <select id="filter-type" value={filters.type} onChange={(e) => set("type", e.target.value)}>
+          <select
+            id="filter-type"
+            value={filters.type}
+            onChange={(e) => set("type", e.target.value)}
+          >
             <option value="">Tous</option>
             {DEMANDE_TYPES.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="filter-select-wrap">
           <label htmlFor="filter-priorite">Priorité</label>
-          <select id="filter-priorite" value={filters.priorite} onChange={(e) => set("priorite", e.target.value)}>
+          <select
+            id="filter-priorite"
+            value={filters.priorite}
+            onChange={(e) => set("priorite", e.target.value)}
+          >
             <option value="">Toutes</option>
             {DEMANDE_PRIORITES.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
             ))}
           </select>
         </div>
 
         <div className="filter-select-wrap">
           <label htmlFor="filter-client">Client</label>
-          <select id="filter-client" value={filters.clientId} onChange={(e) => set("clientId", e.target.value)}>
+          <select
+            id="filter-client"
+            value={filters.clientId}
+            onChange={(e) => set("clientId", e.target.value)}
+          >
             <option value="">Tous</option>
             {clients.map((c) => (
               <option key={c.id} value={c.id}>
@@ -83,7 +112,10 @@ export function filterDemandes(demandes, filters) {
         demande.client_prenom,
         demande.client_name,
         demande.machine_nom,
-      ].filter(Boolean).join(" ").toLowerCase();
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
       if (!haystack.includes(search)) return false;
     }
     if (filters.status && demande.status !== filters.status) return false;

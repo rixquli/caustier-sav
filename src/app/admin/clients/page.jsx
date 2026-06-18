@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { LuPencil } from "react-icons/lu";
 import PageLayout from "@/components/PageLayout";
+import ClientEditModal from "@/components/ClientEditModal";
 
 export default function AdminClientsPage() {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -58,6 +61,7 @@ export default function AdminClientsPage() {
                 <th>Téléphone</th>
                 <th>Statut</th>
                 <th>Créé le</th>
+                <th style={{ width: 90 }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -80,11 +84,34 @@ export default function AdminClientsPage() {
                     )}
                   </td>
                   <td>{c.createdAt ? new Date(c.createdAt).toLocaleDateString("fr-FR") : "—"}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn action-button-demande-table"
+                      onClick={() => setEditing(c)}
+                    >
+                      <span>Gérer</span>
+                      <LuPencil size={15} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {editing && (
+        <ClientEditModal
+          client={editing}
+          onClose={() => setEditing(null)}
+          onUpdated={(updated) => {
+            setClients((prev) =>
+              prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)),
+            );
+            setEditing((prev) => (prev ? { ...prev, ...updated } : prev));
+          }}
+        />
       )}
     </PageLayout>
   );

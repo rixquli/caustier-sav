@@ -20,30 +20,37 @@ export default function Header({ onToggleNav, navOpen }) {
           <FiMenu aria-hidden="true" />
         </button>
         <Link href={"/"} className="header-logo">
-          <span className="header-logo-text">Caustier</span>
+          <span className="header-logo-mark">C</span>
+          <span className="header-brand">
+            <span className="header-logo-text">Caustier</span>
+            <span className="header-subtitle">Suivi Clients</span>
+          </span>
         </Link>
       </div>
 
       <div className="header-actions">
         {user && (
-          <span className="header-user-name">
-            {user.displayName || user.nom}
-          </span>
+          <Link
+            href={user?.role === "admin" ? "/admin/clients" : "/compte"}
+            className="header-user-chip"
+            aria-label="Profil utilisateur"
+          >
+            <span className="header-avatar">
+              <FiUser aria-hidden="true" />
+            </span>
+            <span className="header-user-name">
+              {user.displayName || user.nom}
+            </span>
+          </Link>
         )}
-        <Link
-          href={user?.role === "admin" ? "/admin/clients" : "/compte"}
-          className="header-profile"
-          aria-label="Profil utilisateur"
-        >
-          <FiUser className="header-profile-icon" aria-hidden="true" />
-        </Link>
         <button
           type="button"
-          className="header-profile"
+          className="header-logout"
           aria-label="Se déconnecter"
           onClick={logout}
         >
-          <FiLogOut className="header-profile-icon" aria-hidden="true" />
+          <FiLogOut aria-hidden="true" />
+          <span>Déconnexion</span>
         </button>
       </div>
     </header>
