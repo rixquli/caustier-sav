@@ -2,12 +2,18 @@ import path from "path";
 import Database from "better-sqlite3";
 
 const dbPath = path.join(process.cwd(), "profile.db");
-export const db = new Database(dbPath);
 
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
+let dbInstance = null;
+let schemaInitialized = false;
 
-db.exec(`
+function initSchema(database) {
+  if (schemaInitialized) return;
+  schemaInitialized = true;
+
+  database.pragma("journal_mode = WAL");
+  database.pragma("foreign_keys = ON");
+
+  database.exec(`
   CREATE TABLE IF NOT EXISTS machines (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
@@ -104,30 +110,56 @@ db.exec(`
   );
 `);
 
+  migrateLegacyData(database);
+}
+
+export function getDb() {
+  if (!dbInstance) {
+    dbInstance = new Database(dbPath);
+    initSchema(dbInstance);
+  }
+  return dbInstance;
+}
+
+export const db = new Proxy(
+  {},
+  {
+    get(_target, prop) {
+      const instance = getDb();
+      const value = instance[prop];
+      return typeof value === "function" ? value.bind(instance) : value;
+    },
+  },
+);
+
 export function ensureExtraColumns() {
+  const database = getDb();
   // notes_admin on user (Better Auth additionalFields handles it on fresh DB,
   // but ALTER TABLE is needed for existing DBs that were created before this field)
-  const userCols = db.prepare("PRAGMA table_info(user)").all();
+  const userCols = database.prepare("PRAGMA table_info(user)").all();
   if (userCols.length > 0 && !userCols.some((c) => c.name === "notes_admin")) {
-    db.exec("ALTER TABLE user ADD COLUMN notes_admin TEXT");
+    database.exec("ALTER TABLE user ADD COLUMN notes_admin TEXT");
   }
 
   // notes_admin on demandes
-  const demandeCols = db.prepare("PRAGMA table_info(demandes)").all();
-  if (demandeCols.length > 0 && !demandeCols.some((c) => c.name === "notes_admin")) {
-    db.exec("ALTER TABLE demandes ADD COLUMN notes_admin TEXT");
+  const demandeCols = database.prepare("PRAGMA table_info(demandes)").all();
+  if (
+    demandeCols.length > 0 &&
+    !demandeCols.some((c) => c.name === "notes_admin")
+  ) {
+    database.exec("ALTER TABLE demandes ADD COLUMN notes_admin TEXT");
   }
 }
 
-function migrateLegacyData() {
+function migrateLegacyData(database) {
   ensureExtraColumns();
 
-  const demandeCols = db.prepare("PRAGMA table_info(demandes)").all();
+  const demandeCols = database.prepare("PRAGMA table_info(demandes)").all();
   if (demandeCols.length === 0) return;
 
   const hasMachineCol = demandeCols.some((c) => c.name === "machine");
   if (hasMachineCol) {
-    db.exec(`
+    database.exec(`
       UPDATE demandes SET type = 'SAV' WHERE type IN ('panne', 'maintenance', 'installation', 'devis');
       UPDATE demandes SET type = 'AUTRE' WHERE type = 'autre';
       UPDATE demandes SET priorite = 'faible' WHERE priorite = 'basse';
@@ -136,8 +168,6 @@ function migrateLegacyData() {
     `);
   }
 }
-
-migrateLegacyData();
 
 export function findAppUserById(id) {
   return db
@@ -478,6 +508,13 @@ export function updateDemande(id, fields, actorId) {
   }
 
   return getDemandeById(id);
+}
+
+export function deleteDemande(id) {
+  const existing = getDemandeById(id);
+  if (!existing) return null;
+  db.prepare("DELETE FROM demandes WHERE id = ?").run(id);
+  return existing;
 }
 
 export function getRecentDemandes(limit = 10, userId = null) {

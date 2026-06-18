@@ -42,7 +42,9 @@ function SidebarGroup({ item, pathname }) {
   }, [hasActiveChild, pathname]);
 
   return (
-    <div className={`sidebar-group${hasActiveChild ? " sidebar-group--active" : ""}`}>
+    <div
+      className={`sidebar-group${hasActiveChild ? " sidebar-group--active" : ""}`}
+    >
       <button
         type="button"
         className={`sidebar-group-toggle${hasActiveChild ? " sidebar-group-toggle--active" : ""}`}
@@ -61,6 +63,7 @@ function SidebarGroup({ item, pathname }) {
         <div className="sidebar-subnav">
           {item.children.map((child) => {
             const active = activeChildHref === child.href;
+            const Icon = child.icon;
 
             return (
               <Link
@@ -69,6 +72,7 @@ function SidebarGroup({ item, pathname }) {
                 className={`sidebar-sublink${active ? " sidebar-sublink--active" : ""}`}
                 aria-current={active ? "page" : undefined}
               >
+                <Icon className="sidebar-children-icon" aria-hidden="true" />
                 <span>{child.label}</span>
               </Link>
             );
@@ -98,15 +102,6 @@ export default function Sidebar({ open = false }) {
 
   return (
     <aside className={`sidebar${open ? " sidebar--open" : ""}`}>
-      {!loading && user && (
-        <div className="sidebar-user">
-          <span className="sidebar-user-name">{user.nom}</span>
-          <span className="sidebar-user-role">
-            {user.role === "admin" ? "Administrateur" : "Client"}
-          </span>
-        </div>
-      )}
-
       <nav className="sidebar-nav">
         {navItems.map((item) => (
           <SidebarItem key={item.label} item={item} pathname={pathname} />

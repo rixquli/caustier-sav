@@ -18,6 +18,7 @@ Client se connecte, crée une demande SAV et suit son dossier.
 - bouton pour créer une demande (titre, description, type, priorité, machine)
 - page de suivi d'une demande : statut visible, messages des admins (avec possibilité de répondre)
 - accès à la FAQ avec filtres et recherche (questions/réponses fréquentes)
+- barre de recherche qui permet de trouvé une FAQ rapidement
 
 ## Demande SAV
 
@@ -65,9 +66,6 @@ Fonctionnalités :
 
 ## Interface admin
 
-- tableau de bord avec statistiques (nombre de demandes par statut, etc...)
-  - actions rapides: création de demande, création de client, création d'entrée FAQ
-
 - liste des demandes
   - tableau avec filtres (statut, type, priorité, client) et recherche
   - bouton ajout manuel d'une demande
@@ -95,9 +93,11 @@ Fonctionnalités :
 
 - gestion de la FAQ
   - tableau avec filtres (catégorie), tri et recherche
-  - bouton ajout d'une nouvelle entrée FAQ
-  - page de détail pour éditer/modifier une entrée :
+
+- gestion de la FAQ
     - question
+
+
     - réponse
     - catégorie
     - historique des modifications

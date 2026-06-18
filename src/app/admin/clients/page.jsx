@@ -2,16 +2,28 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LuPencil } from "react-icons/lu";
 import PageLayout from "@/components/PageLayout";
+import ClientCreateModal from "@/components/ClientCreateModal";
 import ClientEditModal from "@/components/ClientEditModal";
 
 export default function AdminClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") === "1") {
+      setCreating(true);
+      router.replace("/admin/clients", { scroll: false });
+    }
+  }, [router]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -44,7 +56,13 @@ export default function AdminClientsPage() {
             </button>
           </label>
         </div>
-        <Link href="/admin/clients/new" className="btn btn-primary">Nouveau client</Link>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setCreating(true)}
+        >
+          Nouveau client
+        </button>
       </div>
 
       {loading ? (
@@ -99,6 +117,15 @@ export default function AdminClientsPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {creating && (
+        <ClientCreateModal
+          onClose={() => setCreating(false)}
+          onCreated={(client) => {
+            setClients((prev) => [client, ...prev]);
+          }}
+        />
       )}
 
       {editing && (

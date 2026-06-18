@@ -1,55 +1,77 @@
 import { betterAuth } from "better-auth";
-import { db, ensureExtraColumns } from "@/db/db";
-import { seedFaqIfEmpty } from "@/db/db";
+import { getDb, ensureExtraColumns, seedFaqIfEmpty } from "@/db/db";
 import { setUserPassword } from "@/lib/password-utils";
 
-export const auth = betterAuth({
-  database: db,
-  emailAndPassword: {
-    enabled: true,
-  },
-  user: {
-    additionalFields: {
-      role: {
-        type: "string",
-        required: false,
-        defaultValue: "client",
-        input: false,
-      },
-      nom: { type: "string", required: false },
-      prenom: { type: "string", required: false },
-      phone: { type: "string", required: false },
-      adresse: { type: "string", required: false },
-      archived: {
-        type: "boolean",
-        required: false,
-        defaultValue: false,
-        input: false,
-      },
-      mustChangePassword: {
-        type: "boolean",
-        required: false,
-        defaultValue: false,
-        input: false,
-      },
-      notes_admin: {
-        type: "string",
-        required: false,
-        input: false,
+let authInstance = null;
+
+function createAuth() {
+  return betterAuth({
+    database: getDb(),
+    emailAndPassword: {
+      enabled: true,
+    },
+    user: {
+      additionalFields: {
+        role: {
+          type: "string",
+          required: false,
+          defaultValue: "client",
+          input: false,
+        },
+        nom: { type: "string", required: false },
+        prenom: { type: "string", required: false },
+        phone: { type: "string", required: false },
+        adresse: { type: "string", required: false },
+        archived: {
+          type: "boolean",
+          required: false,
+          defaultValue: false,
+          input: false,
+        },
+        mustChangePassword: {
+          type: "boolean",
+          required: false,
+          defaultValue: false,
+          input: false,
+        },
+        notes_admin: {
+          type: "string",
+          required: false,
+          input: false,
+        },
       },
     },
+    secret:
+      process.env.BETTER_AUTH_SECRET ||
+      "caustier-sav-dev-secret-change-in-prod",
+    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  });
+}
+
+export function getAuth() {
+  if (!authInstance) {
+    authInstance = createAuth();
+  }
+  return authInstance;
+}
+
+export const auth = new Proxy(
+  {},
+  {
+    get(_target, prop) {
+      const instance = getAuth();
+      const value = instance[prop];
+      return typeof value === "function" ? value.bind(instance) : value;
+    },
   },
-  secret:
-    process.env.BETTER_AUTH_SECRET || "caustier-sav-dev-secret-change-in-prod",
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
-});
+);
 
 let migrationsDone = false;
 
 export async function ensureAuthMigrations() {
   if (migrationsDone) return;
   try {
-    const ctx = await auth.$context;
+    const ctx = await getAuth().$context;
     await ctx.runMigrations();
     ensureExtraColumns();
     await seedDefaultUsers();
@@ -89,22 +111,23 @@ async function seedDefaultUsers() {
 }
 
 async function seedDefaultUser({ email, password, name, fields }) {
-  let user = db.prepare("SELECT id FROM user WHERE email = ?").get(email);
+  const database = getDb();
+  let user = database.prepare("SELECT id FROM user WHERE email = ?").get(email);
 
   if (!user) {
-    await auth.api.signUpEmail({
+    await getAuth().api.signUpEmail({
       body: {
         email,
         password,
         name,
       },
     });
-    user = db.prepare("SELECT id FROM user WHERE email = ?").get(email);
+    user = database.prepare("SELECT id FROM user WHERE email = ?").get(email);
   }
 
   if (!user) return;
 
-  db.prepare(
+  database.prepare(
     `UPDATE user
      SET role = ?, nom = ?, prenom = ?, mustChangePassword = ?, archived = ?, name = ?
      WHERE email = ?`,

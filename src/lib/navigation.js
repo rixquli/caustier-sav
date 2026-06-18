@@ -1,26 +1,39 @@
 import { RxDashboard } from "react-icons/rx";
 import {
-  FiUsers,
-  FiFileText,
-  FiUser,
-  FiPlusCircle,
-  FiHelpCircle,
-} from "react-icons/fi";
+  MdOutlineSupportAgent,
+  MdOutlineAdminPanelSettings,
+} from "react-icons/md";
+import { FiUsers, FiFileText, FiUser, FiHelpCircle } from "react-icons/fi";
 
 export const ADMIN_ROUTES = ["/admin"];
 
 export const adminNav = [
   { label: "Tableau de bord", icon: RxDashboard, href: "/" },
-  { label: "Demandes SAV", icon: FiFileText, href: "/admin/demandes" },
-  { label: "Clients", icon: FiUsers, href: "/admin/clients" },
-  { label: "FAQ", icon: FiHelpCircle, href: "/admin/faq" },
+  {
+    label: "Support",
+    icon: MdOutlineSupportAgent,
+    children: [
+      { label: "FAQ", icon: FiHelpCircle, href: "/admin/faq" },
+      { label: "Demandes SAV", icon: FiFileText, href: "/admin/demandes" },
+    ],
+  },
+  {
+    label: "Administration",
+    icon: MdOutlineAdminPanelSettings,
+    children: [{ label: "Clients", icon: FiUsers, href: "/admin/clients" }],
+  },
 ];
 
 export const clientNav = [
   { label: "Accueil", icon: RxDashboard, href: "/" },
-  { label: "Mes demandes", icon: FiFileText, href: "/demandes" },
-  { label: "Nouvelle demande", icon: FiPlusCircle, href: "/demandes/nouvelle" },
-  { label: "FAQ", icon: FiHelpCircle, href: "/faq" },
+  {
+    label: "Support",
+    icon: MdOutlineSupportAgent,
+    children: [
+      { label: "FAQ", icon: FiHelpCircle, href: "/faq" },
+      { label: "Mes demandes", icon: FiFileText, href: "/demandes" },
+    ],
+  },
   { label: "Mon profil", icon: FiUser, href: "/compte" },
 ];
 

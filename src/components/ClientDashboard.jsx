@@ -24,7 +24,7 @@ export default function ClientDashboard({ user }) {
           <h1>Mon espace client</h1>
           <p>Bonjour {user?.displayName || user?.nom}, suivez vos demandes SAV.</p>
         </div>
-        <Link href="/demandes/nouvelle" className="dashboard-primary-cta">
+        <Link href="/demandes?nouvelle=1" className="dashboard-primary-cta">
           <span>Créer une demande SAV</span>
           <small>Panne, question ou intervention</small>
         </Link>
@@ -44,7 +44,7 @@ export default function ClientDashboard({ user }) {
         <section className="dashboard-panel">
           <h2>Actions rapides</h2>
           <div className="quick-actions">
-            <Link href="/demandes/nouvelle" className="quick-action quick-action--primary">
+            <Link href="/demandes?nouvelle=1" className="quick-action quick-action--primary">
               Créer une demande SAV
             </Link>
             <Link href="/demandes" className="quick-action">Voir toutes mes demandes</Link>

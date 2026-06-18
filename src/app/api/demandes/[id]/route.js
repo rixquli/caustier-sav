@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  deleteDemande,
   getDemandeById,
   listActivityForDemande,
   listMessagesForDemande,
@@ -82,4 +83,25 @@ export async function PATCH(request, { params }) {
   } catch {
     return NextResponse.json({ error: "Une erreur est survenue." }, { status: 500 });
   }
+}
+
+export async function DELETE(_request, { params }) {
+  const user = await getSessionUser();
+  const authError = requireUser(user);
+  if (authError) {
+    return NextResponse.json({ error: authError.error }, { status: authError.status });
+  }
+
+  if (user.role !== "admin") {
+    return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const deleted = deleteDemande(Number(id));
+
+  if (!deleted) {
+    return NextResponse.json({ error: "Demande introuvable." }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
 }

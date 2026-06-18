@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
+import Image from "next/image";
 
 export default function Login() {
   const router = useRouter();
@@ -54,8 +55,7 @@ export default function Login() {
       <div className="log-page">
         <div className="log-card">
           <div className="log-header">
-            <div className="log-logo">C</div>
-            <h1>Caustier</h1>
+            <Image src={"/favicon.ico"} alt="logo" width={100} height={100} />
             <p>Connectez-vous à votre compte.</p>
           </div>
 

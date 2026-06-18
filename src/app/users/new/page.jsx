@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function NewUserRedirect() {
-  redirect("/admin/clients/new");
+  redirect("/admin/clients?new=1");
 }

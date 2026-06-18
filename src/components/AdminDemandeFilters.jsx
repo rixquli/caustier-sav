@@ -2,16 +2,32 @@
 
 import { FiSearch } from "react-icons/fi";
 import {
-  DEMANDE_PRIORITES,
+  ACTIVE_STATUSES,
   DEMANDE_STATUTS,
   DEMANDE_TYPES,
 } from "@/lib/constants";
 
-export default function AdminDemandeFilters({
-  filters,
-  onChange,
-  clients = [],
-}) {
+const DAY_MS = 1000 * 60 * 60 * 24;
+const LATE_THRESHOLD_DAYS = 14;
+
+function Toggle({ label, checked, onChange }) {
+  return (
+    <label className="filter-toggle">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        className={`filter-toggle-switch${checked ? " filter-toggle-switch--on" : ""}`}
+        onClick={() => onChange(!checked)}
+      >
+        <span className="filter-toggle-knob" />
+      </button>
+      <span className="filter-toggle-label">{label}</span>
+    </label>
+  );
+}
+
+export default function AdminDemandeFilters({ filters, onChange }) {
   function set(key, value) {
     onChange({ ...filters, [key]: value });
   }
@@ -20,16 +36,15 @@ export default function AdminDemandeFilters({
     <div className="filters-panel">
       <div className="filters-row">
         <div className="filter-search">
-          <label>Recherche</label>
-          <div>
-            <FiSearch className="filter-search-icon" aria-hidden="true" />
-            <input
-              type="search"
-              placeholder="Recherche"
-              value={filters.search}
-              onChange={(e) => set("search", e.target.value)}
-            />
-          </div>
+          <label htmlFor="filter-search-input">Recherche</label>
+          <FiSearch className="filter-search-icon" aria-hidden="true" />
+          <input
+            id="filter-search-input"
+            type="search"
+            placeholder="Titre, client, machine…"
+            value={filters.search}
+            onChange={(e) => set("search", e.target.value)}
+          />
         </div>
 
         <div className="filter-select-wrap">
@@ -64,44 +79,39 @@ export default function AdminDemandeFilters({
           </select>
         </div>
 
-        <div className="filter-select-wrap">
-          <label htmlFor="filter-priorite">Priorité</label>
-          <select
-            id="filter-priorite"
-            value={filters.priorite}
-            onChange={(e) => set("priorite", e.target.value)}
-          >
-            <option value="">Toutes</option>
-            {DEMANDE_PRIORITES.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-select-wrap">
-          <label htmlFor="filter-client">Client</label>
-          <select
-            id="filter-client"
-            value={filters.clientId}
-            onChange={(e) => set("clientId", e.target.value)}
-          >
-            <option value="">Tous</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {[c.prenom, c.nom].filter(Boolean).join(" ") || c.name}
-              </option>
-            ))}
-          </select>
+        <div className="filter-toggles-wrap">
+          <span className="filter-label-spacer" aria-hidden="true" />
+          <div className="filters-toggles">
+            <Toggle
+              label="Ouvertes seulement"
+              checked={filters.openOnly}
+              onChange={(v) => set("openOnly", v)}
+            />
+            <Toggle
+              label="Mes requêtes"
+              checked={filters.mine}
+              onChange={(v) => set("mine", v)}
+            />
+            <Toggle
+              label="Non assignées"
+              checked={filters.unassigned}
+              onChange={(v) => set("unassigned", v)}
+            />
+            <Toggle
+              label="En retard"
+              checked={filters.late}
+              onChange={(v) => set("late", v)}
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-export function filterDemandes(demandes, filters) {
+export function filterDemandes(demandes, filters, currentUserId) {
   const search = filters.search.trim().toLowerCase();
+  const now = Date.now();
 
   return demandes.filter((demande) => {
     if (search) {
@@ -118,10 +128,20 @@ export function filterDemandes(demandes, filters) {
         .toLowerCase();
       if (!haystack.includes(search)) return false;
     }
+
     if (filters.status && demande.status !== filters.status) return false;
     if (filters.type && demande.type !== filters.type) return false;
-    if (filters.priorite && demande.priorite !== filters.priorite) return false;
-    if (filters.clientId && demande.user_id !== filters.clientId) return false;
+
+    const isActive = ACTIVE_STATUSES.includes(demande.status);
+
+    if (filters.openOnly && !isActive) return false;
+    if (filters.mine && demande.assigned_to !== currentUserId) return false;
+    if (filters.unassigned && demande.assigned_to) return false;
+    if (filters.late) {
+      const ageDays = (now - new Date(demande.created_at).getTime()) / DAY_MS;
+      if (!isActive || ageDays <= LATE_THRESHOLD_DAYS) return false;
+    }
+
     return true;
   });
 }

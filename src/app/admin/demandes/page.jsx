@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiPlus } from "react-icons/fi";
+import { useAuth } from "@/context/AuthContext";
 import AdminCreateDemandeModal from "@/components/AdminCreateDemandeModal";
 import AdminDemandeFilters, {
   filterDemandes,
@@ -12,11 +13,14 @@ const DEFAULT_FILTERS = {
   search: "",
   status: "",
   type: "",
-  priorite: "",
-  clientId: "",
+  openOnly: true,
+  mine: false,
+  unassigned: false,
+  late: false,
 };
 
 export default function AdminDemandesPage() {
+  const { user } = useAuth();
   const [demandes, setDemandes] = useState([]);
   const [clients, setClients] = useState([]);
   const [admins, setAdmins] = useState([]);
@@ -24,6 +28,24 @@ export default function AdminDemandesPage() {
   const [showModal, setShowModal] = useState(false);
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sortDesc, setSortDesc] = useState(true);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const next = {};
+    if (p.has("q")) {
+      next.search = p.get("q");
+      next.openOnly = false;
+    }
+    if (p.has("status")) next.status = p.get("status");
+    if (p.has("type")) next.type = p.get("type");
+    if (p.has("unassigned")) next.unassigned = p.get("unassigned") === "1";
+    if (p.has("late")) next.late = p.get("late") === "1";
+    if (p.has("mine")) next.mine = p.get("mine") === "1";
+    if (p.has("open")) next.openOnly = p.get("open") === "1";
+    if (Object.keys(next).length) {
+      setFilters((prev) => ({ ...prev, ...next }));
+    }
+  }, []);
 
   const loadData = useCallback(async () => {
     const [demandesRes, metaRes, clientsRes] = await Promise.all([
@@ -48,13 +70,13 @@ export default function AdminDemandesPage() {
   }, [loadData]);
 
   const filtered = useMemo(() => {
-    const result = filterDemandes(demandes, filters);
+    const result = filterDemandes(demandes, filters, user?.id);
     return [...result].sort((a, b) => {
       const da = new Date(a.created_at).getTime();
       const db = new Date(b.created_at).getTime();
       return sortDesc ? db - da : da - db;
     });
-  }, [demandes, filters, sortDesc]);
+  }, [demandes, filters, sortDesc, user?.id]);
 
   return (
     <div className="page admin-demandes-page">
@@ -75,11 +97,7 @@ export default function AdminDemandesPage() {
         </button>
       </div>
 
-      <AdminDemandeFilters
-        filters={filters}
-        onChange={setFilters}
-        clients={clients}
-      />
+      <AdminDemandeFilters filters={filters} onChange={setFilters} />
 
       {loading ? (
         <p className="page-muted">Chargement…</p>
@@ -92,6 +110,7 @@ export default function AdminDemandesPage() {
             demandes={filtered}
             clients={clients}
             admins={admins}
+            currentUserId={user?.id}
             sortDesc={sortDesc}
             onToggleSort={() => setSortDesc((v) => !v)}
             onUpdated={(updated) => {
@@ -100,6 +119,9 @@ export default function AdminDemandesPage() {
                   demande.id === updated.id ? updated : demande,
                 ),
               );
+            }}
+            onDeleted={(id) => {
+              setDemandes((prev) => prev.filter((d) => d.id !== id));
             }}
           />
         </>
