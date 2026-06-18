@@ -63,6 +63,15 @@ db.exec(`
     FOREIGN KEY (demande_id) REFERENCES demandes(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS client_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    admin_id TEXT NOT NULL,
+    contenu TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS demande_activity (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     demande_id INTEGER NOT NULL,
@@ -95,7 +104,24 @@ db.exec(`
   );
 `);
 
+export function ensureExtraColumns() {
+  // notes_admin on user (Better Auth additionalFields handles it on fresh DB,
+  // but ALTER TABLE is needed for existing DBs that were created before this field)
+  const userCols = db.prepare("PRAGMA table_info(user)").all();
+  if (userCols.length > 0 && !userCols.some((c) => c.name === "notes_admin")) {
+    db.exec("ALTER TABLE user ADD COLUMN notes_admin TEXT");
+  }
+
+  // notes_admin on demandes
+  const demandeCols = db.prepare("PRAGMA table_info(demandes)").all();
+  if (demandeCols.length > 0 && !demandeCols.some((c) => c.name === "notes_admin")) {
+    db.exec("ALTER TABLE demandes ADD COLUMN notes_admin TEXT");
+  }
+}
+
 function migrateLegacyData() {
+  ensureExtraColumns();
+
   const demandeCols = db.prepare("PRAGMA table_info(demandes)").all();
   if (demandeCols.length === 0) return;
 
@@ -117,7 +143,7 @@ export function findAppUserById(id) {
   return db
     .prepare(
       `SELECT id, name, email, emailVerified, image, createdAt, updatedAt,
-              role, nom, prenom, phone, adresse, archived, mustChangePassword
+              role, nom, prenom, phone, adresse, archived, mustChangePassword, notes_admin
        FROM user WHERE id = ?`,
     )
     .get(id);
@@ -169,6 +195,7 @@ export function updateAppUser(id, fields) {
     "archived",
     "mustChangePassword",
     "name",
+    "notes_admin",
   ];
   const sets = [];
   const values = [];
@@ -304,7 +331,9 @@ export function listActivityForDemande(demandeId, publicOnly = false) {
 
 const DEMANDE_SELECT = `
   SELECT d.*,
-         u.nom AS client_nom, u.prenom AS client_prenom, u.name AS client_name, u.email AS client_email,
+         u.nom AS client_nom, u.prenom AS client_prenom, u.name AS client_name,
+         u.email AS client_email, u.phone AS client_phone, u.adresse AS client_adresse,
+         u.notes_admin AS client_notes_admin,
          a.nom AS assignee_nom, a.prenom AS assignee_prenom, a.name AS assignee_name,
          m.nom AS machine_nom
   FROM demandes d
@@ -383,6 +412,14 @@ export function updateDemande(id, fields, actorId) {
     if (fields[key] !== undefined && fields[key] !== existing[key]) {
       updates[key] = fields[key];
     }
+  }
+
+  // notes_admin saved silently (no activity log)
+  if (fields.notes_admin !== undefined) {
+    db.prepare("UPDATE demandes SET notes_admin = ? WHERE id = ?").run(
+      fields.notes_admin?.trim() || null,
+      id,
+    );
   }
 
   if (fields.status !== undefined) {
@@ -574,6 +611,35 @@ export function deleteNote(id, actorId) {
     isPublic: false,
   });
   return note;
+}
+
+export function listClientNotes(userId) {
+  return db
+    .prepare(
+      `SELECT n.*, u.nom AS auteur_nom, u.prenom AS auteur_prenom, u.name AS auteur_name
+       FROM client_notes n
+       LEFT JOIN user u ON u.id = n.admin_id
+       WHERE n.user_id = ?
+       ORDER BY n.created_at DESC`,
+    )
+    .all(userId);
+}
+
+export function createClientNote({ userId, adminId, contenu }) {
+  const result = db
+    .prepare(
+      "INSERT INTO client_notes (user_id, admin_id, contenu) VALUES (?, ?, ?)",
+    )
+    .run(userId, adminId, contenu);
+
+  return db
+    .prepare(
+      `SELECT n.*, u.nom AS auteur_nom, u.prenom AS auteur_prenom, u.name AS auteur_name
+       FROM client_notes n
+       LEFT JOIN user u ON u.id = n.admin_id
+       WHERE n.id = ?`,
+    )
+    .get(result.lastInsertRowid);
 }
 
 export function listFaq({ categorie, search } = {}) {

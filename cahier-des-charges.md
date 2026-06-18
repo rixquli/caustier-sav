@@ -65,6 +65,9 @@ Fonctionnalités :
 
 ## Interface admin
 
+- tableau de bord avec statistiques (nombre de demandes par statut, etc...)
+  - actions rapides: création de demande, création de client, création d'entrée FAQ
+
 - liste des demandes
   - tableau avec filtres (statut, type, priorité, client) et recherche
   - bouton ajout manuel d'une demande

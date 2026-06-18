@@ -38,11 +38,13 @@ export function isNavItemGroup(item) {
 
 export function isLinkActive(pathname, href) {
   if (href === "/") return pathname === "/";
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return pathname === href;
 }
 
 export function getActiveChildHref(pathname, children) {
-  return children.find(({ href }) => isLinkActive(pathname, href))?.href ?? null;
+  return (
+    children.find(({ href }) => isLinkActive(pathname, href))?.href ?? null
+  );
 }
 
 export function isAdminRoute(pathname) {

@@ -46,6 +46,7 @@ export default function AdminClientDetailPage({ params }) {
       email: data.client.email ?? "",
       phone: data.client.phone ?? "",
       adresse: data.client.adresse ?? "",
+      notes_admin: data.client.notes_admin ?? "",
       archived: Boolean(data.client.archived),
     });
   }
@@ -161,6 +162,15 @@ export default function AdminClientDetailPage({ params }) {
         <div className="form-field">
           <label>Adresse</label>
           <textarea value={form.adresse} onChange={(e) => setForm({ ...form, adresse: e.target.value })} rows={2} />
+        </div>
+        <div className="form-field">
+          <label>Notes internes admin</label>
+          <textarea
+            value={form.notes_admin}
+            onChange={(e) => setForm({ ...form, notes_admin: e.target.value })}
+            rows={5}
+            placeholder="Contexte, consignes particulières, historique informel… Visible uniquement par les administrateurs."
+          />
         </div>
         <div className="form-actions">
           <button type="submit" className="btn btn-primary" disabled={saving}>

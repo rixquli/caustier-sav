@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import {
+  getPrioriteBadge,
   getPrioriteLabel,
   getStatutInfo,
+  getTypeBadge,
   getTypeLabel,
 } from "@/lib/constants";
 
@@ -16,86 +18,45 @@ function formatDate(dateStr) {
   });
 }
 
-export default function DemandeList({
+export function DemandeCardList({
   demandes,
   detailBasePath = "/demandes",
   showClient = false,
+  emptyMessage = "Aucune demande.",
 }) {
   if (!demandes.length) {
-    return (
-      <div className="empty-state">
-        <p>Aucune demande pour le moment.</p>
-      </div>
-    );
+    return <p className="page-muted">{emptyMessage}</p>;
   }
 
   return (
-    <div className="table-wrap">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Titre</th>
-            {showClient && <th>Client</th>}
-            <th>Type</th>
-            <th>Priorité</th>
-            <th>Machine</th>
-            <th>Statut</th>
-            <th>Créée le</th>
-          </tr>
-        </thead>
-        <tbody>
-          {demandes.map((demande) => {
-            const statut = getStatutInfo(demande.status);
-            return (
-              <tr key={demande.id}>
-                <td>
-                  <Link href={`${detailBasePath}/${demande.id}`} className="table-link">
-                    #{demande.id}
-                  </Link>
-                </td>
-                <td>
-                  <Link href={`${detailBasePath}/${demande.id}`} className="table-link">
-                    {demande.titre}
-                  </Link>
-                </td>
-                {showClient && (
-                  <td>
-                    {[demande.client_prenom, demande.client_nom].filter(Boolean).join(" ") ||
-                      demande.client_name}
-                  </td>
-                )}
-                <td>{getTypeLabel(demande.type)}</td>
-                <td>{getPrioriteLabel(demande.priorite)}</td>
-                <td>{demande.machine_nom || "Non renseigné"}</td>
-                <td>
-                  <span className={`badge ${statut.badge}`}>{statut.label}</span>
-                </td>
-                <td>{formatDate(demande.created_at)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-export function DemandeCardList({ demandes, detailBasePath = "/demandes" }) {
-  if (!demandes.length) {
-    return <p className="page-muted">Aucune demande.</p>;
-  }
-
-  return (
-    <ul className="dashboard-list">
+    <ul className="demande-card-list">
       {demandes.map((demande) => {
         const statut = getStatutInfo(demande.status);
         return (
-          <li key={demande.id}>
-            <Link href={`${detailBasePath}/${demande.id}`} className="table-link">
-              #{demande.id} — {demande.titre}
+          <li key={demande.id} className="demande-card-item">
+            <Link href={`${detailBasePath}/${demande.id}`} className="demande-card-link">
+              <div className="demande-card-main">
+                <span className="demande-card-id">#{demande.id}</span>
+                <h3>{demande.titre}</h3>
+                <p>
+                  {showClient &&
+                    `${[demande.client_prenom, demande.client_nom].filter(Boolean).join(" ") ||
+                      demande.client_name ||
+                      "Client non renseigné"} · `}
+                  {demande.machine_nom || "Machine non renseignée"} · Dernière activité{" "}
+                  {formatDate(demande.last_activity_at || demande.created_at)}
+                </p>
+              </div>
+              <div className="demande-card-badges">
+                <span className={`badge ${statut.badge}`}>{statut.label}</span>
+                <span className={`badge badge-type ${getTypeBadge(demande.type)}`}>
+                  {getTypeLabel(demande.type)}
+                </span>
+                <span className={`badge badge-prio ${getPrioriteBadge(demande.priorite)}`}>
+                  {getPrioriteLabel(demande.priorite)}
+                </span>
+              </div>
             </Link>
-            <span className={`badge ${statut.badge}`}>{statut.label}</span>
           </li>
         );
       })}

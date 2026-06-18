@@ -91,13 +91,13 @@ function SidebarItem({ item, pathname }) {
   return null;
 }
 
-export default function Sidebar() {
+export default function Sidebar({ open = false }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const navItems = user ? getNavForRole(user.role) : [];
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${open ? " sidebar--open" : ""}`}>
       {!loading && user && (
         <div className="sidebar-user">
           <span className="sidebar-user-name">{user.nom}</span>

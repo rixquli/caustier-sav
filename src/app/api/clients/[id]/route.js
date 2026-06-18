@@ -44,7 +44,7 @@ export async function PATCH(request, { params }) {
 
   try {
     const body = await request.json();
-    const { nom, prenom, email, phone, adresse, archived, resetPassword } = body;
+    const { nom, prenom, email, phone, adresse, archived, resetPassword, notes_admin } = body;
 
     let tempPassword = null;
 
@@ -65,6 +65,7 @@ export async function PATCH(request, { params }) {
       adresse: adresse?.trim() ?? existing.adresse,
       archived: archived !== undefined ? (archived ? 1 : 0) : existing.archived,
       name: name || existing.name,
+      notes_admin: notes_admin !== undefined ? (notes_admin?.trim() || null) : existing.notes_admin,
     });
 
     if (email?.trim() && email.trim() !== existing.email) {

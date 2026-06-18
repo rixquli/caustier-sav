@@ -73,6 +73,7 @@ export async function PATCH(request, { params }) {
         assigned_to: body.assignedTo ?? body.assigned_to,
         machine_id: body.machineId ?? body.machine_id,
         user_id: body.userId ?? body.user_id,
+        notes_admin: body.notes_admin,
       },
       user.id,
     );

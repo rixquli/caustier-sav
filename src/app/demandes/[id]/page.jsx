@@ -2,11 +2,7 @@
 
 import { useEffect, useState } from "react";
 import PageLayout from "@/components/PageLayout";
-import {
-  getPrioriteLabel,
-  getStatutInfo,
-  getTypeLabel,
-} from "@/lib/constants";
+import { getPrioriteLabel, getStatutInfo, getTypeLabel } from "@/lib/constants";
 
 function formatDateTime(dateStr) {
   if (!dateStr) return "—";
@@ -19,7 +15,7 @@ function formatActivity(entry) {
     case "creation":
       return "Demande créée";
     case "status_change":
-      return `Statut changé : ${details.from} → ${details.to}`;
+      return `Statut : ${getStatutInfo(details.from).label} → ${getStatutInfo(details.to).label}`;
     case "message":
       return "Nouveau message";
     case "field_update":
@@ -46,14 +42,19 @@ export default function DemandeDetailPage({ params }) {
   async function load() {
     if (!id) return;
     const res = await fetch(`/api/demandes/${id}`);
-    if (!res.ok) { setDemande(null); return; }
+    if (!res.ok) {
+      setDemande(null);
+      return;
+    }
     const data = await res.json();
     setDemande(data.demande);
     setMessages(data.messages ?? []);
     setActivity(data.activity ?? []);
   }
 
-  useEffect(() => { load().finally(() => setLoading(false)); }, [id]);
+  useEffect(() => {
+    load().finally(() => setLoading(false));
+  }, [id]);
 
   async function handleSend(e) {
     e.preventDefault();
@@ -67,7 +68,10 @@ export default function DemandeDetailPage({ params }) {
         body: JSON.stringify({ contenu }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error); return; }
+      if (!res.ok) {
+        setError(data.error);
+        return;
+      }
       setContenu("");
       await load();
     } catch {
@@ -77,8 +81,18 @@ export default function DemandeDetailPage({ params }) {
     }
   }
 
-  if (loading) return <PageLayout title="Demande"><p className="page-muted">Chargement…</p></PageLayout>;
-  if (!demande) return <PageLayout title="Introuvable"><p>Demande introuvable.</p></PageLayout>;
+  if (loading)
+    return (
+      <PageLayout title="Demande">
+        <p className="page-muted">Chargement…</p>
+      </PageLayout>
+    );
+  if (!demande)
+    return (
+      <PageLayout title="Introuvable">
+        <p>Demande introuvable.</p>
+      </PageLayout>
+    );
 
   const statut = getStatutInfo(demande.status);
   const isClosed = demande.status === "fermee";
@@ -94,15 +108,23 @@ export default function DemandeDetailPage({ params }) {
             <span>{demande.machine_nom || "Non renseigné"}</span>
           </div>
           <p className="detail-description">{demande.description}</p>
-          <p className="page-muted">Créée le {formatDateTime(demande.created_at)}</p>
+          <p className="page-muted">
+            Créée le {formatDateTime(demande.created_at)}
+          </p>
           {demande.last_activity_at && (
-            <p className="page-muted">Dernière activité : {formatDateTime(demande.last_activity_at)}</p>
+            <p className="page-muted">
+              Dernière activité : {formatDateTime(demande.last_activity_at)}
+            </p>
           )}
           {demande.resolved_at && (
-            <p className="page-muted">Résolue le {formatDateTime(demande.resolved_at)}</p>
+            <p className="page-muted">
+              Résolue le {formatDateTime(demande.resolved_at)}
+            </p>
           )}
           {demande.closed_at && (
-            <p className="page-muted">Fermée le {formatDateTime(demande.closed_at)}</p>
+            <p className="page-muted">
+              Fermée le {formatDateTime(demande.closed_at)}
+            </p>
           )}
         </section>
 
@@ -113,10 +135,17 @@ export default function DemandeDetailPage({ params }) {
           ) : (
             <ul className="message-list">
               {messages.map((msg) => (
-                <li key={msg.id} className={`message-item${msg.auteur_role === "admin" ? " message-item--admin" : ""}`}>
+                <li
+                  key={msg.id}
+                  className={`message-item${msg.auteur_role === "admin" ? " message-item--admin" : ""}`}
+                >
                   <div className="message-header">
-                    <strong>{msg.auteur_prenom || msg.auteur_nom || msg.auteur_name}</strong>
-                    <span className="page-muted">{formatDateTime(msg.created_at)}</span>
+                    <strong>
+                      {msg.auteur_prenom || msg.auteur_nom || msg.auteur_name}
+                    </strong>
+                    <span className="page-muted">
+                      {formatDateTime(msg.created_at)}
+                    </span>
                   </div>
                   <p>{msg.contenu}</p>
                 </li>
@@ -126,8 +155,18 @@ export default function DemandeDetailPage({ params }) {
           {!isClosed && (
             <form className="message-form" onSubmit={handleSend}>
               {error && <div className="alert alert-error">{error}</div>}
-              <textarea value={contenu} onChange={(e) => setContenu(e.target.value)} rows={3} placeholder="Votre message…" required />
-              <button type="submit" className="btn btn-primary" disabled={sending}>
+              <textarea
+                value={contenu}
+                onChange={(e) => setContenu(e.target.value)}
+                rows={3}
+                placeholder="Votre message…"
+                required
+              />
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={sending}
+              >
                 {sending ? "Envoi…" : "Envoyer"}
               </button>
             </form>
@@ -143,7 +182,9 @@ export default function DemandeDetailPage({ params }) {
               {activity.map((entry) => (
                 <li key={entry.id} className="activity-item">
                   <span>{formatActivity(entry)}</span>
-                  <span className="page-muted">{formatDateTime(entry.created_at)}</span>
+                  <span className="page-muted">
+                    {formatDateTime(entry.created_at)}
+                  </span>
                 </li>
               ))}
             </ul>
