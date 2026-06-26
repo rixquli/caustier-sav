@@ -269,56 +269,6 @@ const data: Ticket[] = [
     statut: "Fermé",
     priority: "Moyenne",
   },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
 ];
 
 const columns = [

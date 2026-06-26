@@ -41,6 +41,8 @@ const machineInfo = [
   { text: "Notes", value: "Bon état général, maintenance OK" },
 ];
 
+const TECHNICIANS = ["Technicien1", "Technicien2"];
+
 export default function ticketDetail() {
   return (
     <>
@@ -49,7 +51,7 @@ export default function ticketDetail() {
       </PageHeader>
       <section className="page-container ticket-detail-container">
         <div className="ticket-detail-side">
-          <Frame className=".div1">
+          <Frame className="">
             <FrameHeader
               frameHeaderText="Probleme pesée"
               className="frame-header-text"
@@ -95,7 +97,32 @@ export default function ticketDetail() {
               arcu vel porttitor dignissim.
             </FrameBody>
           </Frame>
-          <Frame className=".div3">
+
+          <div className="ticket-detail-suivis">
+            <div className="suivis-text-container">
+              <div className="circle-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="ticket-detail-side">
+          <Frame className="ticket-gestion">
+            <FrameHeader frameHeaderText="Assigné à"></FrameHeader>
+            <Separator />
+            <FrameBody>
+              <div className="flex-clo  ">
+                <label>Technicien</label>
+                <select>
+                  {TECHNICIANS.map((statut) => (
+                    <option key={statut} value={statut}>
+                      {statut}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </FrameBody>
+          </Frame>
+          <Frame className="">
             <FrameHeader
               frameHeaderText="NOM CLIENT"
               className="frame-header-text"
@@ -112,21 +139,13 @@ export default function ticketDetail() {
               </div>
             </FrameInfo>
             <Separator />
-            <FrameBody>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit
-              amet purus blandit, interdum massa nec, fringilla neque. Ut luctus
-              lacus in neque facilisis, eget elementum odio elementum. Lorem
-              ipsum dolor sit amet, consectetur adipiscing elit. Aliquam euismod
-              arcu vel porttitor dignissim.
-            </FrameBody>
-            <Separator />
             <FrameFooter>
               <Button variant="outline" text="Voir fiche client">
                 <BsFileEarmarkPerson />
               </Button>
             </FrameFooter>
           </Frame>
-          <Frame className=".div4">
+          <Frame className="">
             <FrameHeader
               frameHeaderText="NOM Machine"
               className="frame-header-text"
@@ -143,25 +162,11 @@ export default function ticketDetail() {
               </div>
             </FrameInfo>
             <Separator />
-            <FrameBody>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit
-              amet purus blandit, interdum massa nec, fringilla neque. Ut luctus
-              lacus in neque facilisis, eget elementum odio elementum. Lorem
-              ipsum dolor sit amet, consectetur adipiscing elit. Aliquam euismod
-              arcu vel porttitor dignissim.
-            </FrameBody>
-            <Separator />
             <FrameFooter>
               <Button variant="outline" text="Voir fiche client">
                 <BsFileEarmarkPerson />
               </Button>
             </FrameFooter>
-          </Frame>
-        </div>
-
-        <div className="ticket-detail-side">
-          <Frame className="ticket-gestion">
-            <FrameHeader frameHeaderText="Assigné à"></FrameHeader>
           </Frame>
         </div>
       </section>

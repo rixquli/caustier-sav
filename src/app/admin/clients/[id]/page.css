@@ -2,3 +2,22 @@
   display: flex;
   gap: 0.5rem;
 }
+
+.client-detail-side {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.client-detail-machine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.client-detail-container {
+  display: flex;
+  flex-direction: row;
+  gap: 2rem;
+}

@@ -30,3 +30,15 @@
   display: flex;
   gap: 5px;
 }
+
+.ticket-gestion {
+  min-width: 25rem;
+  max-width: 25rem;
+}
+
+.ticket-detail-suivis {
+}
+
+.suivis-text-container {
+  height: 100%;
+}
