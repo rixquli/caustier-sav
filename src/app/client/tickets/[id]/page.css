@@ -1,0 +1,25 @@
+.ticket-detail-container {
+  display: flex;
+  flex-direction: row;
+}
+
+.frame-info {
+  display: flex;
+  gap: 10px;
+}
+
+.frame-info-el {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.date-create {
+  padding: 0.2rem 0.5rem;
+}
+
+.tickets-action-rapide {
+  display: flex;
+  gap: 5px;
+}
