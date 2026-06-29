@@ -1,9 +1,13 @@
+import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
 import { AiOutlineSearch } from "react-icons/ai";
 import { BiArrowToRight } from "react-icons/bi";
 import { FaUser } from "react-icons/fa6";
 
 export default function Header() {
+  const logout = () => {
+    authClient.signOut();
+  };
   return (
     <header>
       <div className="header-container">
@@ -21,7 +25,7 @@ export default function Header() {
           <button>
             <FaUser size={20} />
           </button>
-          <button>
+          <button onClick={logout}>
             <BiArrowToRight size={20} />
           </button>
         </div>

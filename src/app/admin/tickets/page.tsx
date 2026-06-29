@@ -46,7 +46,7 @@ export default function Home() {
               <ModalTextInput
                 id="ticket-description"
                 placeholder="Description"
-                type="description"
+                variant="description"
               >
                 Description du ticket
               </ModalTextInput>

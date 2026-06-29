@@ -1,22 +1,22 @@
-import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
-import { BiPlus } from "react-icons/bi";
-import Button from "@/components/Button";
+"use client";
+
+import NewTicketButton from "@/components/client/NewTicketButton";
 import TicketTable from "@/components/client/TicketTable";
 import PageHeader from "@/components/page/PageHeader";
+import { authClient } from "@/lib/auth-client";
 
 export default function Home() {
+  const { data: session } = authClient.useSession();
+
   return (
     <>
       <PageHeader
-        title="Bienvenue client"
+        title={"Bienvenue " + session?.user.name}
         description="Voici votre espace client"
       >
-        <Button text="Nouveau ticket">
-          <BiPlus size={30} />
-        </Button>
+        <NewTicketButton />
       </PageHeader>
-      <section className="page-container">
+      <section>
         <h4>Vos tickets</h4>
         <TicketTable />
       </section>

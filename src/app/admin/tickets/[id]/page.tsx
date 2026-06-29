@@ -43,7 +43,7 @@ const machineInfo = [
 
 const TECHNICIANS = ["Technicien1", "Technicien2"];
 
-export default function ticketDetail() {
+export default function TicketDetail() {
   return (
     <>
       <PageHeader>

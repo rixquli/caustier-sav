@@ -10,6 +10,7 @@ import Modal, {
 } from "@/components/Modal";
 import { useForm } from "react-hook-form";
 import Separator from "@/components/Separator";
+import { authClient } from "@/lib/auth-client";
 
 type FormData = {
   email: string;
@@ -23,25 +24,28 @@ export default function LoginModal() {
     formState: { errors },
   } = useForm<FormData>();
 
-  function onSubmit(data: FormData) {
-    console.log(data);
-    // onClose?.();
+  async function onSubmit(data: FormData) {
+    await authClient.signIn.email({
+      email: data.email,
+      password: data.password,
+      callbackURL: "/auth/redirect",
+    });
   }
+
   return (
     <Modal noOverlay>
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="modal-logo">
-          <Image src="/logo-caustier.png" width={100} height={100} alt="logo" />
+      <div className="modal-logo">
+        <Image src="/logo-caustier.png" width={100} height={100} alt="logo" />
+      </div>
+
+      <ModalHeader>
+        <div className="flex-clo w-full">
+          <h1>Connexion</h1>
+          <span>Connectez-vous à votre compte</span>
+          <Separator />
         </div>
-
-        <ModalHeader>
-          <div className="flex-clo w-full">
-            <h1>Connexion</h1>
-            <span>Connectez-vous à votre compte</span>
-            <Separator />
-          </div>
-        </ModalHeader>
-
+      </ModalHeader>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <ModalBody>
           <div className="form-parent">
             <ModalTextInput
@@ -49,6 +53,7 @@ export default function LoginModal() {
               placeholder="Identifiant"
               register={register("email", { required: true })}
               error={errors.email}
+              type="email"
             >
               Identifiant
             </ModalTextInput>

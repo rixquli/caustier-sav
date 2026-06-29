@@ -26,7 +26,7 @@ export default function Button({
   variant = "full",
   text,
   color = "green",
-  type,
+  type = "button",
   onClick,
 }: btnType) {
   return (

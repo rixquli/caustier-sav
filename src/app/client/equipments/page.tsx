@@ -1,34 +1,28 @@
 "use client";
-import Header from "@/components/Header";
-import Sidebar from "@/components/Sidebar";
 import ListPageHeader from "@/components/page/ListPageHeader";
 import { FcElectronics } from "react-icons/fc";
 import Card from "@/components/Card";
 import { usePathname, useRouter } from "next/navigation";
+import { GrStatusGoodSmall } from "react-icons/gr";
 
-const faqs = [
+const machines = [
   {
     id: "1",
-    name: "Problème pesée",
-    desc: "Débrancher le cable ici-présent et ne pas oublier de sa...",
-    type: "Electronique",
-    icon: <FcElectronics />,
+    title: "Calibreusse",
+    // type: "Electronique",
+    icon: <GrStatusGoodSmall />,
   },
 ];
 export default function Faq() {
-  const { push } = useRouter();
-  const pathname = usePathname();
-
   return (
     <>
       <ListPageHeader
         isAdmin={false}
-        btnText="Nouvelle FAQ"
-        isFilter={true}
-        title="FAQ"
+        isFilter={false}
+        title="Mes équipements"
       />
       <div className="page-list-container">
-        {faqs
+        {machines
           // .filter(
           //   (el) =>
           //     globalFilter == "" ||
@@ -36,20 +30,18 @@ export default function Faq() {
           //     el.desc.toLowerCase().includes(globalFilter.toLowerCase()) ||
           //     el.type.toLowerCase().includes(globalFilter.toLowerCase()),
           // )
-          .map((faq) => {
+          .map((machine) => {
             return (
               <Card
-                className="cursor-pointer"
-                key={faq.id}
-                title="Problème pesée"
-                desc="Debrancher le cable ici-présent et ne pa..."
+                key={machine.id}
+                title={machine.title}
+                // desc="Debrancher le cable ici-présent et ne pa..."
                 badgeText={{
                   reversed: false,
-                  text: "Electronique",
-                  icon: <FcElectronics />,
-                  iconColor: "#ff0000",
+                  text: "En marche",
+                  icon: <GrStatusGoodSmall />,
+                  iconColor: "#00ff00",
                 }}
-                onClick={() => push(`${pathname}/${faq.id}`)}
               ></Card>
             );
           })}

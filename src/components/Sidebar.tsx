@@ -1,5 +1,5 @@
 "use client";
-import { sidebarMenus } from "@/libs/navigations";
+import { sidebarMenus } from "@/lib/navigations";
 import Link from "next/link";
 import { useState } from "react";
 import { AiOutlineArrowLeft } from "react-icons/ai";

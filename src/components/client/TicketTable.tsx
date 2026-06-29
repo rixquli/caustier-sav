@@ -10,266 +10,44 @@ import {
   ColumnFiltersState,
 } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
-import { BsToggleOn } from "react-icons/bs";
-const data: Ticket[] = [
-  {
-    id: "1",
-    title: "Bug login page",
-    description:
-      "Les utilisateurs ne peuvent pas se connecter avec leur email.",
-    assignTo: "Alice Martin",
-    creationDate: new Date("2024-01-15"),
-    statut: "Ouverte",
-    priority: "Haute",
-  },
-  {
-    id: "2",
-    title: "Amélioration dashboard",
-    description:
-      "Ajouter des graphiques de performance sur le tableau de bord.",
-    assignTo: "Bob Dupont",
-    creationDate: new Date("2024-01-18"),
-    statut: "En cours",
-    priority: "Moyenne",
-  },
-  {
-    id: "3",
-    title: "Erreur export PDF",
-    description: "L'export PDF plante sur les rapports de plus de 50 pages.",
-    assignTo: "Claire Lefebvre",
-    creationDate: new Date("2024-01-20"),
-    statut: "Ouverte",
-    priority: "Haute",
-  },
-  {
-    id: "4",
-    title: "Mise à jour dépendances",
-    description: "Mettre à jour les packages npm obsolètes.",
-    assignTo: "David Bernard",
-    creationDate: new Date("2024-01-22"),
-    statut: "Fermé",
-    priority: "Basse",
-  },
-  {
-    id: "5",
-    title: "Page 404 manquante",
-    description: "Créer une page d'erreur 404 personnalisée.",
-    assignTo: "Alice Martin",
-    creationDate: new Date("2024-01-25"),
-    statut: "En cours",
-    priority: "Moyenne",
-  },
-  {
-    id: "6",
-    title: "Fuite mémoire API",
-    description:
-      "L'API consomme de plus en plus de mémoire après 24h d'uptime.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-01-28"),
-    statut: "Ouverte",
-    priority: "Critique",
-  },
-  {
-    id: "7",
-    title: "Traduction manquante",
-    description: "Plusieurs labels ne sont pas traduits en anglais.",
-    assignTo: "Bob Dupont",
-    creationDate: new Date("2024-02-01"),
-    statut: "Fermé",
-    priority: "Basse",
-  },
-  {
-    id: "8",
-    title: "Timeout requêtes lentes",
-    description:
-      "Les requêtes sur la liste des commandes dépassent le timeout.",
-    assignTo: "Claire Lefebvre",
-    creationDate: new Date("2024-02-03"),
-    statut: "En cours",
-    priority: "Haute",
-  },
-  {
-    id: "9",
-    title: "Formulaire d'inscription cassé",
-    description:
-      "Le bouton soumettre est désactivé même avec les champs remplis.",
-    assignTo: "David Bernard",
-    creationDate: new Date("2024-02-05"),
-    statut: "Ouverte",
-    priority: "Haute",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-  {
-    id: "10",
-    title: "Optimisation images",
-    description:
-      "Compresser les assets images pour améliorer le temps de chargement.",
-    assignTo: "Eve Rousseau",
-    creationDate: new Date("2024-02-08"),
-    statut: "Fermé",
-    priority: "Moyenne",
-  },
-];
+import { useEffect, useState } from "react";
+
+type ApiTicket = {
+  id: number;
+  title: string;
+  description: string;
+  priority: string;
+  status: string;
+  created_at?: string;
+  assigned_to?: number | string | null;
+};
+
+function mapApiTicket(ticket: ApiTicket): Ticket {
+  const priorityMap: Record<string, Ticket["priority"]> = {
+    Basse: "Basse",
+    Normal: "Moyenne",
+    Moyenne: "Moyenne",
+    Haute: "Haute",
+    Critique: "Critique",
+  };
+  const statutMap: Record<string, Ticket["statut"]> = {
+    Ouvert: "Ouverte",
+    Ouverte: "Ouverte",
+    "En cours": "En cours",
+    Résolu: "Résolu",
+    Fermé: "Fermé",
+  };
+
+  return {
+    id: String(ticket.id),
+    title: ticket.title,
+    description: ticket.description,
+    priority: priorityMap[ticket.priority] ?? "Moyenne",
+    statut: statutMap[ticket.status] ?? "Ouverte",
+    creationDate: ticket.created_at ? new Date(ticket.created_at) : new Date(),
+    assignTo: ticket.assigned_to ? String(ticket.assigned_to) : "—",
+  };
+}
 
 const columns = [
   { accessorKey: "id", header: "Id" },
@@ -281,17 +59,44 @@ const columns = [
 
 const STATUTS = ["Tous", "Ouverte", "En cours", "Fermé"];
 const PRIORITIES = ["Toutes", "Basse", "Moyenne", "Haute", "Critique"];
-// const TYPES = ["Tous", ];
 
 export default function TicketTable() {
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const { push } = useRouter();
   const pathname = usePathname();
 
+  useEffect(() => {
+    async function loadTickets() {
+      try {
+        const response = await fetch("/api/tickets");
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message ?? `Erreur ${response.status}`);
+        }
+
+        console.log("tickets:", data);
+        setTickets(data.map(mapApiTicket));
+      } catch (e) {
+        const message =
+          e instanceof Error ? e.message : "Impossible de charger les tickets";
+        console.error("Erreur chargement tickets:", message);
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadTickets();
+  }, []);
+
   const table = useReactTable({
-    data,
+    data: tickets,
     columns,
     state: {
       sorting,
@@ -306,11 +111,16 @@ export default function TicketTable() {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  console.log(columnFilters);
+  if (loading) {
+    return <p>Chargement des tickets...</p>;
+  }
+
+  if (error) {
+    return <p className="error-message">{error}</p>;
+  }
 
   return (
     <div>
-      {/* Barre de recherche globale */}
       <div className="vos-tickets-header">
         <input
           className="input-bar"
@@ -327,7 +137,7 @@ export default function TicketTable() {
                 table
                   .getColumn("statut")
                   ?.setFilterValue(
-                    e.target.value === "Toutes" ? undefined : e.target.value,
+                    e.target.value === "Tous" ? undefined : e.target.value,
                   )
               }
             >
@@ -360,52 +170,55 @@ export default function TicketTable() {
         </div>
       </div>
 
-      <table className="tickets-table">
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th key={header.id}>
-                  {/* Bouton de tri */}
-                  <div
-                    onClick={header.column.getToggleSortingHandler()}
-                    style={{
-                      cursor: header.column.getCanSort()
-                        ? "pointer"
-                        : "default",
-                    }}
-                  >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
-                    )}
-                    {
-                      { asc: " ↑", desc: " ↓" }[
-                        header.column.getIsSorted() as string
-                      ]
-                    }
-                  </div>
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
+      {tickets.length === 0 ? (
+        <p>Aucun ticket pour le moment.</p>
+      ) : (
+        <table className="tickets-table">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th key={header.id}>
+                    <div
+                      onClick={header.column.getToggleSortingHandler()}
+                      style={{
+                        cursor: header.column.getCanSort()
+                          ? "pointer"
+                          : "default",
+                      }}
+                    >
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
+                      {
+                        { asc: " ↑", desc: " ↓" }[
+                          header.column.getIsSorted() as string
+                        ]
+                      }
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
 
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              onClick={() => push(`${pathname}/${row.original.id}`)}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                onClick={() => push(`${pathname}/${row.original.id}`)}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
-import React, { MouseEventHandler } from "react";
+import React, { MouseEventHandler, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { FieldError, UseFormRegisterReturn } from "react-hook-form";
 import { AiOutlineClose } from "react-icons/ai";
 
@@ -29,6 +30,22 @@ function Modal({
   onClose,
   className = "",
 }: ModalProps) {
+  const canCloseOverlayRef = useRef(true);
+
+  useEffect(() => {
+    if (!isOpen) {
+      canCloseOverlayRef.current = true;
+      return;
+    }
+
+    canCloseOverlayRef.current = false;
+    const timer = window.setTimeout(() => {
+      canCloseOverlayRef.current = true;
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const content = (
@@ -44,11 +61,21 @@ function Modal({
     return content;
   }
 
-  return (
-    <div className="modal-overlay" onClick={() => onClose?.()}>
+  if (typeof document === "undefined") return null;
+
+  const overlay = (
+    <div
+      className="modal-overlay"
+      onClick={() => {
+        if (!canCloseOverlayRef.current) return;
+        onClose?.();
+      }}
+    >
       {content}
     </div>
   );
+
+  return createPortal(overlay, document.body);
 }
 
 export function ModalHeader({ children, className = "" }: SectionProps) {
@@ -60,7 +87,11 @@ export function ModalCloseBtn({
   className = "",
 }: SectionProps & { onClick: MouseEventHandler }) {
   return (
-    <button onClick={onClick} className={"modal-close-btn " + className}>
+    <button
+      type="button"
+      onClick={onClick}
+      className={"modal-close-btn " + className}
+    >
       <AiOutlineClose className={``} size={30} />
     </button>
   );
@@ -85,17 +116,19 @@ export function ModalTextInput({
   className = "",
   register,
   error,
-  type = "default",
+  type = "text",
+  variant = "default",
 }: InputSectionProps & {
   register?: UseFormRegisterReturn;
   error?: FieldError | undefined;
-  type?: "default" | "description";
+  variant?: "default" | "description";
+  type?: React.HTMLInputTypeAttribute;
 }) {
   return (
     <div className={`form ${className}`}>
       <label htmlFor={id}>{children}</label>
-      {type == "default" ? (
-        <input id={id} type="text" placeholder={placeholder} {...register} />
+      {variant == "default" ? (
+        <input id={id} type={type} placeholder={placeholder} {...register} />
       ) : (
         <textarea
           name={id}

@@ -7,6 +7,7 @@ import { useState } from "react";
 import Button from "@/components/Button";
 import { GoPlus } from "react-icons/go";
 import PageHeader from "@/components/page/PageHeader";
+import { usePathname, useRouter } from "next/navigation";
 
 const faqs = [
   {
@@ -20,6 +21,8 @@ const faqs = [
 
 export default function FAQList() {
   const [globalFilter, setGlobalFilter] = useState("");
+  const { push } = useRouter();
+  const pathname = usePathname();
 
   return (
     <>
@@ -62,6 +65,7 @@ export default function FAQList() {
                 cardBtn={{
                   textCard: "En savoir plus",
                   iconCard: <FaArrowRight />,
+                  onClick: () => push(`${pathname}/${faq.id}`),
                 }}
               ></Card>
             );

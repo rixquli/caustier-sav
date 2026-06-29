@@ -2,19 +2,22 @@ import Database from "better-sqlite3";
 
 export const dbFilePathName = "./database.db";
 
-const db = new Database(dbFilePathName);
+export const db = new Database(dbFilePathName);
 db.pragma("journal_mode = WAL");
 
 db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
+    CREATE TABLE IF NOT EXISTS user (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        password TEXT NOT NULL,
         name TEXT NOT NULL,
         adresse TEXT NOT NULL,
         telephone TEXT,
         ville TEXT,
         pays TEXT,
         code_postal TEXT,
-        note TEXT
+        note TEXT,
+        is_admin BOOLEAN NOT NULL DEFAULT false
     );
 
     CREATE TABLE IF NOT EXISTS machines (
@@ -30,7 +33,7 @@ db.exec(`
         technician_name TEXT,
         tel_technician TEXT,
         note TEXT,
-        FOREIGN KEY (assigned_to) REFERENCES users(id)
+        FOREIGN KEY (assigned_to) REFERENCES user(id)
     );
 
     CREATE TABLE IF NOT EXISTS tickets (
@@ -41,8 +44,10 @@ db.exec(`
         priority TEXT DEFAULT 'Normal',
         status TEXT DEFAULT 'Ouvert',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        created_by INTEGER,
         assigned_to INTEGER,
         FOREIGN KEY (machine_id) REFERENCES machines(id),
-        FOREIGN KEY (assigned_to) REFERENCES users(id)
+        FOREIGN KEY (assigned_to) REFERENCES user(id),
+        FOREIGN KEY (created_by) REFERENCES user(id)
     );
 `);

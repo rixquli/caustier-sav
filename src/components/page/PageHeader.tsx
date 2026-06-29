@@ -1,4 +1,6 @@
-export default function P({
+"use client";
+
+export default function PageHeader({
   children,
   title,
   description,

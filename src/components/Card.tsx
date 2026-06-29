@@ -7,9 +7,12 @@ export default function Card({
   desc,
   badgeText,
   cardBtn,
+  onClick,
+  className,
 }: {
+  className?: string;
   title: string;
-  desc: React.ReactNode | string;
+  desc?: React.ReactNode | string;
   badgeText: {
     reversed: boolean;
     text: string;
@@ -21,13 +24,14 @@ export default function Card({
     iconCard: React.ReactNode;
     onClick?: MouseEventHandler<HTMLButtonElement>;
   };
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   return (
-    <div className="card-item">
+    <div onClick={onClick} className={"card-item " + className}>
       <div className="card-content">
         <div className="card-image"></div>
         <h1 className="card-name">{title}</h1>
-        <p className="card-desc">{desc}</p>
+        {desc && <p className="card-desc">{desc}</p>}
         <Badge
           className="card-badge"
           icon={badgeText.icon}

@@ -478,6 +478,8 @@ main {
 /* Dashboard */
 
 .page-header {
+  position: relative;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -893,4 +895,8 @@ section {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
