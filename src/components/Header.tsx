@@ -1,5 +1,6 @@
 import { authClient } from "@/lib/auth-client";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { AiOutlineSearch } from "react-icons/ai";
 import { BiArrowToRight } from "react-icons/bi";
 import { FaUser } from "react-icons/fa6";
@@ -7,12 +8,19 @@ import { FaUser } from "react-icons/fa6";
 export default function Header() {
   const logout = () => {
     authClient.signOut();
+    redirect("/login");
   };
   return (
     <header>
       <div className="header-container">
         <div className="header-left-part">
-          <Image alt="logo" src="/header-logo.png" height={40} width={140} />
+          <Image
+            loading="eager"
+            alt="logo"
+            src="/header-logo.png"
+            height={40}
+            width={140}
+          />
           <h2>Suivi Clients</h2>
         </div>
         <div className="header-middle-part">

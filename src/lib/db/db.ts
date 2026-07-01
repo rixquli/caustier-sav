@@ -17,7 +17,8 @@ db.exec(`
         pays TEXT,
         code_postal TEXT,
         note TEXT,
-        is_admin BOOLEAN NOT NULL DEFAULT false
+        is_admin BOOLEAN NOT NULL DEFAULT false,
+        specialite TEXT DEFAULT 'Autre'
     );
 
     CREATE TABLE IF NOT EXISTS machines (
@@ -46,8 +47,37 @@ db.exec(`
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         created_by INTEGER,
         assigned_to INTEGER,
+        type TEXT DEFAULT 'Inconnu',
         FOREIGN KEY (machine_id) REFERENCES machines(id),
         FOREIGN KEY (assigned_to) REFERENCES user(id),
         FOREIGN KEY (created_by) REFERENCES user(id)
     );
+
 `);
+
+// --- Migration automatique : ajoute les colonnes manquantes ---
+function addColumnIfNotExists(
+  table: string,
+  column: string,
+  definition: string,
+) {
+  const existingColumns = db.prepare(`PRAGMA table_info(${table})`).all() as {
+    name: string;
+  }[];
+
+  const columnExists = existingColumns.some((col) => col.name === column);
+
+  if (!columnExists) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    console.log(`Colonne "${column}" ajoutée à la table "${table}"`);
+  }
+}
+
+// Exemple : si t'ajoutes "specialite" à user plus tard
+// addColumnIfNotExists("user", "specialite", "TEXT");
+
+// Exemple : si t'ajoutes "note" à machines plus tard
+// addColumnIfNotExists("machines", "note", "TEXT");
+
+// Exemple : si t'ajoutes "type" à tickets plus tard
+// addColumnIfNotExists("tickets", "type", "TEXT DEFAULT 'Inconnu'");

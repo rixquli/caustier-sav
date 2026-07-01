@@ -22,8 +22,22 @@ import { BiSolidTrash } from "react-icons/bi";
 import { GrStatusGoodSmall } from "react-icons/gr";
 import { FcHighPriority } from "react-icons/fc";
 import "./page.css";
+import { useParams } from "next/navigation";
+import { useState } from "react";
+import { Machine } from "@/types/machine";
+import { useEffect } from "react";
 
-export default function faqDetail() {
+export default function MachineDetail() {
+  const params = useParams<{ id: string }>();
+  const [machine, setMachine] = useState<Machine | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/machines/${params.id}`).then((res) => {
+      res.json().then((data) => {
+        setMachine(data);
+      });
+    });
+  }, [params.id]);
   return (
     <>
       <PageHeader>
@@ -31,9 +45,9 @@ export default function faqDetail() {
       </PageHeader>
       <section className="page-container faq-detail-container">
         <div className="faq-detail-side">
-          <Frame className="">
+          <Frame className="machine-info-container">
             <FrameHeader
-              frameHeaderText="Probleme pesée"
+              frameHeaderText={machine?.name ?? "Loading..."}
               className="frame-header-text"
             >
               <div className="faq-action-rapide">
@@ -45,37 +59,37 @@ export default function faqDetail() {
             </FrameHeader>
             <Separator />
             <FrameInfo>
-              <div className="frame-info">
-                <div className="frame-info-el">
-                  <span>Statut:</span>
-                  <Badge
-                    text="Ouvert"
-                    icon={<GrStatusGoodSmall />}
-                    iconColor={"#00FF00"}
-                  />
+              <div className="frame-line-detail-info">
+                <div>
+                  <span>Type:</span>
+                  <span>{machine?.type ?? ""}</span>
                 </div>
-                <div className="frame-info-el">
-                  <span>Priorité:</span>
-                  <Badge
-                    text="Haute"
-                    icon={<FcHighPriority />}
-                    iconColor={"#FF0000"}
-                  />
+                <div>
+                  <span>Nombre de ligne:</span>
+                  <span>{machine?.number_ligne ?? ""}</span>
                 </div>
-                <div className="frame-info-el">
-                  <span>Date de création:</span>
-                  <span className="date-create">23/06/2026</span>
+                <div>
+                  <span>Produit:</span>
+                  <span>{machine?.product ?? ""}</span>
+                </div>
+                <div>
+                  <span>Version logiciel:</span>
+                  <span>{machine?.version ?? ""}</span>
+                </div>
+                <div>
+                  <span>Téléphone du pilote:</span>
+                  <span>{machine?.tel_pilote ?? ""}</span>
+                </div>
+                <div>
+                  <span>Téléphone du technicien:</span>
+                  <span>{machine?.tel_technician ?? ""}</span>
+                </div>
+                <div>
+                  <span>Notes:</span>
+                  <span>{machine?.note ?? ""}</span>
                 </div>
               </div>
             </FrameInfo>
-            <Separator />
-            <FrameBody>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras sit
-              amet purus blandit, interdum massa nec, fringilla neque. Ut luctus
-              lacus in neque facilisis, eget elementum odio elementum. Lorem
-              ipsum dolor sit amet, consectetur adipiscing elit. Aliquam euismod
-              arcu vel porttitor dignissim.
-            </FrameBody>
           </Frame>
         </div>
       </section>

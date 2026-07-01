@@ -1,5 +1,5 @@
 "use client";
-import { Ticket } from "@/types/ticket";
+import { Status, Priority, Ticket } from "@/types/ticket";
 import {
   useReactTable,
   getCoreRowModel,
@@ -8,9 +8,12 @@ import {
   flexRender,
   SortingState,
   ColumnFiltersState,
+  Row,
 } from "@tanstack/react-table";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Button from "../Button";
+import { FaToggleOff, FaToggleOn } from "react-icons/fa";
 
 type ApiTicket = {
   id: number;
@@ -20,47 +23,65 @@ type ApiTicket = {
   status: string;
   created_at?: string;
   assigned_to?: number | string | null;
+  assigned_to_name?: string | null;
 };
 
-function mapApiTicket(ticket: ApiTicket): Ticket {
+function mapApiTicket(ticket: ApiTicket): Omit<Ticket, "created_by"> {
   const priorityMap: Record<string, Ticket["priority"]> = {
-    Basse: "Basse",
-    Normal: "Moyenne",
-    Moyenne: "Moyenne",
-    Haute: "Haute",
-    Critique: "Critique",
+    Basse: Priority.Basse,
+    Normal: Priority.Normal,
+    Haute: Priority.Haute,
+    Critique: Priority.Critique,
   };
-  const statutMap: Record<string, Ticket["statut"]> = {
-    Ouvert: "Ouverte",
-    Ouverte: "Ouverte",
-    "En cours": "En cours",
-    Résolu: "Résolu",
-    Fermé: "Fermé",
+  const statutMap: Record<string, Ticket["status"]> = {
+    Ouvert: Status.Ouvert,
+    Fermé: Status.Fermé,
   };
 
   return {
-    id: String(ticket.id),
+    id: ticket.id,
     title: ticket.title,
     description: ticket.description,
-    priority: priorityMap[ticket.priority] ?? "Moyenne",
-    statut: statutMap[ticket.status] ?? "Ouverte",
-    creationDate: ticket.created_at ? new Date(ticket.created_at) : new Date(),
-    assignTo: ticket.assigned_to ? String(ticket.assigned_to) : "—",
+    priority: priorityMap[ticket.priority] ?? Priority.Normal,
+    status: statutMap[ticket.status] ?? Status.Ouvert,
+    created_at: ticket.created_at
+      ? new Date(ticket.created_at).toString()
+      : new Date().toString(),
+    assigned_to: ticket.assigned_to ? Number(ticket.assigned_to) : undefined,
+    assigned_to_name: ticket.assigned_to_name ?? undefined,
   };
 }
 
 const columns = [
   { accessorKey: "id", header: "Id" },
   { accessorKey: "title", header: "Titre" },
-  { accessorKey: "assignTo", header: "Assigné à" },
+  {
+    accessorKey: "assigned_to_name",
+    header: "Assigné à",
+    filterFn: (row: Row<Ticket>, columnId: string, filterValue: boolean) => {
+      // Si le filtre n'est pas actif (false/undefined), on affiche tout
+      if (!filterValue) return true;
+      // Si le filtre est actif, on affiche seulement les non-assignés
+      const value = row.getValue(columnId);
+      return value === null || value === undefined;
+    },
+  },
   { accessorKey: "priority", header: "Priorité" },
-  { accessorKey: "statut", header: "Statut" },
+  { accessorKey: "status", header: "Statut" },
 ];
 
-const STATUTS = ["Tous", "Ouverte", "En cours", "Fermé"];
-const PRIORITIES = ["Toutes", "Basse", "Moyenne", "Haute", "Critique"];
+const STATUTS = ["Tous", ...Object.values(Status)];
+const PRIORITIES = ["Toutes", ...Object.values(Priority)];
 
-export default function TicketTable() {
+export default function TicketTable({
+  isAdmin = false,
+  clientId,
+  technicianId,
+}: {
+  isAdmin?: boolean;
+  clientId?: string;
+  technicianId?: string;
+}) {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,19 +89,19 @@ export default function TicketTable() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const { push } = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     async function loadTickets() {
       try {
-        const response = await fetch("/api/tickets");
+        const response = await fetch(
+          `/api/tickets?${clientId ? `clientId=${clientId}` : ""}${technicianId ? `&technicianId=${technicianId}` : ""}`,
+        );
         const data = await response.json();
-
+        console.log("data:", data);
         if (!response.ok) {
           throw new Error(data.message ?? `Erreur ${response.status}`);
         }
 
-        console.log("tickets:", data);
         setTickets(data.map(mapApiTicket));
       } catch (e) {
         const message =
@@ -93,7 +114,7 @@ export default function TicketTable() {
     }
 
     loadTickets();
-  }, []);
+  }, [clientId, technicianId]);
 
   const table = useReactTable({
     data: tickets,
@@ -135,7 +156,7 @@ export default function TicketTable() {
             <select
               onChange={(e) =>
                 table
-                  .getColumn("statut")
+                  .getColumn("status")
                   ?.setFilterValue(
                     e.target.value === "Tous" ? undefined : e.target.value,
                   )
@@ -168,6 +189,23 @@ export default function TicketTable() {
             </select>
           </div>
         </div>
+        <Button
+          className="toggle-button"
+          variant="outline"
+          color="green"
+          onClick={() => {
+            table
+              .getColumn("assigned_to_name")
+              ?.setFilterValue((old: boolean) => !old);
+          }}
+          text="Non assigné"
+        >
+          {table.getColumn("assigned_to_name")?.getFilterValue() ? (
+            <FaToggleOn />
+          ) : (
+            <FaToggleOff />
+          )}
+        </Button>
       </div>
 
       {tickets.length === 0 ? (
@@ -207,7 +245,11 @@ export default function TicketTable() {
             {table.getRowModel().rows.map((row) => (
               <tr
                 key={row.id}
-                onClick={() => push(`${pathname}/${row.original.id}`)}
+                onClick={() =>
+                  push(
+                    `/${isAdmin ? "admin" : "client"}/tickets/${row.original.id}`,
+                  )
+                }
               >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id}>

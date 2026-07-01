@@ -20,7 +20,7 @@ function SidebarSubElement({
 }
 
 function SidebarElement({ line }: { line: (typeof sidebarMenus.client)[0] }) {
-  const [openMenu, setOpenMenu] = useState<boolean>(false);
+  const [openMenu, setOpenMenu] = useState<boolean>(true);
 
   if (!line?.children)
     return (

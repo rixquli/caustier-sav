@@ -1,0 +1,45 @@
+.faq-detail-container {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+}
+
+.faq-detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.frame-info {
+  display: flex;
+  gap: 10px;
+}
+
+.frame-info-el {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.date-create {
+  padding: 0.2rem 0.5rem;
+}
+
+.faq-action-rapide {
+  display: flex;
+  gap: 5px;
+}
+
+.faq-gestion {
+  min-width: 25rem;
+  max-width: 25rem;
+}
+
+.suivis-text-container {
+  height: 100%;
+}
+
+.machine-info-container {
+  min-width: 30rem;
+}

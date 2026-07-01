@@ -13,12 +13,48 @@ import Modal, {
   ModalHeader,
   ModalSelectInput,
   ModalTextInput,
-} from "@/components/Modal";
-import { useState } from "react";
+} from "@/components/Modal/Modal";
+import { useEffect, useState } from "react";
 import Separator from "@/components/Separator";
+import { useForm } from "react-hook-form";
+import { redirect } from "next/navigation";
+import { Priority, Type } from "@/types/ticket";
+import { User } from "@/types/user";
+
+type FormData = {
+  title: string;
+  description: string;
+  created_by: number;
+  type: Type;
+};
 
 export default function Home() {
   const [isOpen, setIsOpen] = useState(false);
+  const { register, handleSubmit, reset } = useForm<FormData>();
+  const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    fetch("/api/users?is_admin=false").then((res) => {
+      res.json().then((data) => {
+        setUsers(data);
+      });
+    });
+  }, []);
+
+  async function onSubmit(data: FormData) {
+    const response = await fetch("/api/tickets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (response.ok) {
+      reset();
+    }
+
+    const result = await response.json();
+    console.log(result);
+  }
 
   return (
     <>
@@ -29,10 +65,10 @@ export default function Home() {
       </PageHeader>
       <section className="page-container">
         <h4>Liste des tickets</h4>
-        <TicketTable />
+        <TicketTable isAdmin />
       </section>
       <Modal isOpen={isOpen}>
-        <form action="">
+        <form onSubmit={handleSubmit(onSubmit)}>
           <ModalHeader>
             <h1>Créer un ticket</h1>{" "}
             <ModalCloseBtn onClick={() => setIsOpen(false)} />
@@ -40,22 +76,41 @@ export default function Home() {
           <Separator />
           <ModalBody>
             <div className="form-parent">
-              <ModalTextInput id="ticket-title" placeholder="Titre">
+              <ModalTextInput
+                id="ticket-title"
+                placeholder="Titre"
+                register={register("title", { required: true })}
+              >
                 Titre du ticket
               </ModalTextInput>
               <ModalTextInput
                 id="ticket-description"
                 placeholder="Description"
                 variant="description"
+                register={register("description", { required: true })}
               >
                 Description du ticket
               </ModalTextInput>
               <ModalSelectInput
-                id="ticket-client"
+                id="ticket-type"
                 optionList={[
-                  { value: "client1", text: "Client 1" },
-                  { value: "client2", text: "Client 2" },
+                  { value: Type.Informatique, text: "Informatique" },
+                  { value: Type.Electricite, text: "Electricite" },
+                  { value: Type.Mecanique, text: "Mecanique" },
+                  { value: Type.Autre, text: "Autre" },
+                  { value: Type.Inconnu, text: "Inconnu" },
                 ]}
+                register={register("type", { required: true })}
+              >
+                Type de ticket
+              </ModalSelectInput>
+              <ModalSelectInput
+                id="ticket-created-by"
+                optionList={users.map((user) => ({
+                  value: user.id.toString(),
+                  text: user.name,
+                }))}
+                register={register("created_by", { required: true })}
               >
                 Client concerné
               </ModalSelectInput>

@@ -76,6 +76,11 @@ export const sidebarMenus = {
           address: "/admin/clients",
           icon: BsPerson,
         },
+        {
+          name: "Techniciens",
+          address: "/admin/technicians",
+          icon: BsPerson,
+        },
       ],
     },
   ],

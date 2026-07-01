@@ -7,7 +7,7 @@ import Modal, {
   ModalFooter,
   ModalHeader,
   ModalTextInput,
-} from "@/components/Modal";
+} from "@/components/Modal/Modal";
 import Separator from "@/components/Separator";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -18,7 +18,7 @@ type FormData = {
   description: string;
 };
 
-function CreateTicketForm({ onClose }: { onClose: () => void }) {
+export function CreateTicketForm({ onClose }: { onClose: () => void }) {
   const { register, handleSubmit, reset } = useForm<FormData>();
 
   async function onSubmit(data: FormData) {

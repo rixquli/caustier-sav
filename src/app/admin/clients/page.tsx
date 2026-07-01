@@ -1,83 +1,44 @@
 "use client";
+
 import PageHeader from "@/components/page/PageHeader";
 import Card from "@/components/Card";
+import Separator from "@/components/Separator";
 
 import { MdOutlineRecordVoiceOver } from "react-icons/md";
 import { GrDocumentConfig } from "react-icons/gr";
 import Button from "@/components/Button";
 import { BiPlus } from "react-icons/bi";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePathname } from "next/navigation";
-
-const clients = [
-  {
-    id: "1",
-    name: "TechSolutions SAS",
-    ville: "Paris",
-    codePostal: "75008",
-    patron: "Jean Dupont",
-  },
-  {
-    id: "2",
-    name: "Boulangerie Martin",
-    ville: "Lyon",
-    codePostal: "69002",
-    patron: "Marie Martin",
-  },
-  {
-    id: "3",
-    name: "Cabinet Lefebvre",
-    ville: "Bordeaux",
-    codePostal: "33000",
-    patron: "Pierre Lefebvre",
-  },
-  {
-    id: "4",
-    name: "Garage Renault Pro",
-    ville: "Marseille",
-    codePostal: "13005",
-    patron: "Sophie Bernard",
-  },
-  {
-    id: "5",
-    name: "Studio Créatif",
-    ville: "Nantes",
-    codePostal: "44000",
-    patron: "Lucas Moreau",
-  },
-  {
-    id: "6",
-    name: "Immobilier Côte d'Azur",
-    ville: "Nice",
-    codePostal: "06000",
-    patron: "Isabelle Petit",
-  },
-  {
-    id: "7",
-    name: "Restaurant Le Gourmet",
-    ville: "Strasbourg",
-    codePostal: "67000",
-    patron: "Antoine Roux",
-  },
-  {
-    id: "8",
-    name: "Pharmacie Centrale",
-    ville: "Toulouse",
-    codePostal: "31000",
-    patron: "Camille Blanc",
-  },
-];
+import Modal, {
+  ModalCloseBtn,
+  ModalBody,
+  ModalHeader,
+  ModalTextInput,
+  ModalFooter,
+} from "@/components/Modal/Modal";
+import { User } from "@/types/user";
 
 export default function ClientList() {
   const [globalFilter, setGlobalFilter] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [clients, setClients] = useState<User[]>([]);
   const { push } = useRouter();
   const pathname = usePathname();
+
+  useEffect(() => {
+    fetch(`/api/users?is_admin=false`).then((res) => {
+      res.json().then((data) => {
+        setClients(data);
+      });
+    });
+  }, []);
 
   return (
     <>
       <PageHeader title="Client" description="Voici la liste des clients">
-        <Button text="Nouveau client">
+        <Button text="Nouveau client" onClick={() => setIsOpen(true)}>
           <BiPlus size={30} />
         </Button>
       </PageHeader>
@@ -98,14 +59,14 @@ export default function ClientList() {
               globalFilter == "" ||
               el.ville.toLowerCase().includes(globalFilter.toLowerCase()) ||
               el.name.toLowerCase().includes(globalFilter.toLowerCase()) ||
-              el.patron.toLowerCase().includes(globalFilter.toLowerCase()),
+              el.adresse.toLowerCase().includes(globalFilter.toLowerCase()),
           )
           .map((client) => {
             const desc = (
               <>
-                Ville: {client.ville}, {client.codePostal}
+                Ville: {client.ville}, {client.code_postal}
                 <br />
-                Patron: {client.patron}
+                Adresse: {client.adresse}
               </>
             );
 
@@ -116,7 +77,7 @@ export default function ClientList() {
                 desc={desc}
                 badgeText={{
                   reversed: false,
-                  text: "Patron",
+                  text: "Client",
                   icon: <MdOutlineRecordVoiceOver />,
                   iconColor: "#000000",
                 }}
@@ -129,6 +90,31 @@ export default function ClientList() {
             );
           })}
       </section>
+
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)}>
+        <ModalHeader>
+          <h1>Test</h1>
+          <ModalCloseBtn onClick={() => setIsOpen(false)} />
+        </ModalHeader>
+
+        <Separator />
+
+        <ModalBody>
+          <div className="form-parent">
+            <ModalTextInput id="client-name" placeholder="Nom">
+              Nom du client
+            </ModalTextInput>
+            <ModalTextInput id="client-prenom" placeholder="Prénom">
+              Prénom du client
+            </ModalTextInput>
+            <ModalTextInput id="client-entreprise" placeholder="Entreprise">
+              Entreprise du client
+            </ModalTextInput>
+          </div>
+        </ModalBody>
+
+        <ModalFooter></ModalFooter>
+      </Modal>
     </>
   );
 }

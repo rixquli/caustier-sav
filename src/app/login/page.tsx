@@ -7,7 +7,7 @@ import Modal, {
   ModalHeader,
   ModalPasswordInput,
   ModalTextInput,
-} from "@/components/Modal";
+} from "@/components/Modal/Modal";
 import { useForm } from "react-hook-form";
 import Separator from "@/components/Separator";
 import { authClient } from "@/lib/auth-client";

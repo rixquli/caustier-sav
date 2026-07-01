@@ -168,11 +168,13 @@ export default function ClientDetail() {
     fetch(`/api/users/${params.id}`).then((res) => {
       res.json().then((data) => {
         setClient(data);
-      });
-    });
-    fetch(`/api/machines?assigned_to=${params.id}`).then((res) => {
-      res.json().then((data) => {
-        setMachines(data);
+        if (data.id) {
+          fetch(`/api/machines?assigned_to=${data.id}`).then((res) => {
+            res.json().then((data) => {
+              setMachines(data);
+            });
+          });
+        }
       });
     });
   }, [params.id]);
@@ -231,76 +233,10 @@ export default function ClientDetail() {
             </FrameInfo>
           </Frame>
         </div>
-
-        <div className="client-detail-side">
-          <div className="client-detail-machine-header">
-            <PageHeader title="Machines">
-              <Button
-                variant="outline"
-                text="Ajouter Machine"
-                onClick={() => setIsOpenMachine(true)}
-              >
-                {" "}
-                <BiPlus />
-              </Button>
-            </PageHeader>
-          </div>
-          <div className="client-detail-machine-list">
-            {machines?.length > 0 ? (
-              machines.map((machine, i) => (
-                <Frame className="" key={`machine-${i}`}>
-                  <FrameHeader
-                    frameHeaderText={machine.name}
-                    className="frame-header-text"
-                  />
-                  <Separator />
-                  <FrameInfo>
-                    <div className="frame-line-detail-info">
-                      <div>
-                        <span>Type: </span>
-                        <span>{machine.type}</span>
-                      </div>
-                      <div>
-                        <span>Nombre de ligne: </span>
-                        <span>{machine.number_ligne}</span>
-                      </div>
-                      <div>
-                        <span>Produit: </span>
-                        <span>{machine.product}</span>
-                      </div>
-                      <div>
-                        <span>Version logiciel: </span>
-                        <span>{machine.version}</span>
-                      </div>
-                      <div>
-                        <span>Notes: </span>
-                        <span>{machine.note}</span>
-                      </div>
-                    </div>
-                  </FrameInfo>
-                  <Separator />
-                  <FrameFooter>
-                    <Button
-                      variant="outline"
-                      text="Voir fiche machine"
-                      onClick={() =>
-                        router.push(`/admin/equipments/${machine.id}`)
-                      }
-                    >
-                      <MdOutlineFactory />
-                    </Button>
-                  </FrameFooter>
-                </Frame>
-              ))
-            ) : (
-              <div>Pas de machines trouvées</div>
-            )}
-          </div>
-        </div>
       </section>
       <section className="page-container">
-        <h4>Tickets du client</h4>
-        <TicketTable clientId={params.id?.toString() ?? ""} isAdmin />
+        <h4>Tickets assignés à ce technicien</h4>
+        <TicketTable technicianId={params.id?.toString() ?? ""} isAdmin />
       </section>
       <Modal isOpen={isOpen} onClose={() => setIsOpen(false)}>
         <UpdateClientForm

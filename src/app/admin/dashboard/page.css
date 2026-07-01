@@ -63,6 +63,10 @@
   padding: var(--space-4);
 }
 
+.panel-container--status {
+  height: fit-content;
+}
+
 .panel-header {
   width: 100%;
 }
@@ -102,6 +106,10 @@
 
 .panel-stat-bar--info {
   background-color: var(--color-info);
+}
+
+.panel-stat-bar--warning {
+  background-color: #ff9500;
 }
 
 .panel-stat-bar--error {
