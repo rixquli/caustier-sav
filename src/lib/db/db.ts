@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
+import path from "path";
 
-export const dbFilePathName = "./database.db";
+export const dbFilePathName = path.join(process.cwd(), "database.db");
 
 export const db = new Database(dbFilePathName);
 db.pragma("journal_mode = WAL");
@@ -52,7 +53,6 @@ db.exec(`
         FOREIGN KEY (assigned_to) REFERENCES user(id),
         FOREIGN KEY (created_by) REFERENCES user(id)
     );
-
 `);
 
 // --- Migration automatique : ajoute les colonnes manquantes ---
@@ -73,11 +73,20 @@ function addColumnIfNotExists(
   }
 }
 
-// Exemple : si t'ajoutes "specialite" à user plus tard
-// addColumnIfNotExists("user", "specialite", "TEXT");
+// --- Colonnes requises par Better Auth sur la table user ---
+// addColumnIfNotExists("user", "emailVerified", "BOOLEAN NOT NULL DEFAULT false");
+// addColumnIfNotExists("user", "image", "TEXT");
+// addColumnIfNotExists(
+//   "user",
+//   "createdAt",
+//   "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP",
+// );
+// addColumnIfNotExists(
+//   "user",
+//   "updatedAt",
+//   "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP",
+// );
 
-// Exemple : si t'ajoutes "note" à machines plus tard
+// Exemple : si t'ajoutes d'autres colonnes plus tard
 // addColumnIfNotExists("machines", "note", "TEXT");
-
-// Exemple : si t'ajoutes "type" à tickets plus tard
 // addColumnIfNotExists("tickets", "type", "TEXT DEFAULT 'Inconnu'");
