@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { auth } from "../auth";
-import { db } from "./db";
+import { queryOne, query } from "./db";
 
 async function createUser() {
   const accountId = randomUUID();
@@ -9,48 +9,50 @@ async function createUser() {
   const ctx = await auth.$context;
   const passwordHash = await ctx.password.hash("monMotDePasse123");
 
-  db.prepare(
+  await query(
     `
-    INSERT INTO user (email, password, name, adresse, telephone, ville, pays, code_postal, note, is_admin, emailVerified, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO "user" (email, password, name, adresse, telephone, ville, pays, code_postal, note, is_admin, emailVerified, createdAt, updatedAt)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
   `,
-  ).run(
-    "admin@example.com",
-    passwordHash,
-    "John Doe",
-    "12 rue de la Paix",
-    "0612345678",
-    "Paris",
-    "France",
-    "75001",
-    null,
-    1,
-    0, // emailVerified = false
-    now,
-    now,
+    [
+      "admin@example.com",
+      passwordHash,
+      "John Doe",
+      "12 rue de la Paix",
+      "0612345678",
+      "Paris",
+      "France",
+      "75001",
+      null,
+      true,
+      false,
+      now,
+      now,
+    ],
   );
 
-  const user = db
-    .prepare(`SELECT id FROM user WHERE email = ?`)
-    .get("admin@example.com") as { id: string }; // corrigé : même email qu'à l'insert
+  const user = (await queryOne<{ id: number }>(
+    `SELECT id FROM "user" WHERE email = $1`,
+    ["admin@example.com"],
+  )) as { id: number };
 
-  db.prepare(
+  await query(
     `
     INSERT INTO account (id, accountId, providerId, userId, password, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
   `,
-  ).run(
-    accountId,
-    user.id.toString(),
-    "credential",
-    user.id.toString(),
-    passwordHash,
-    now,
-    now,
+    [
+      accountId,
+      user.id.toString(),
+      "credential",
+      user.id.toString(),
+      passwordHash,
+      now,
+      now,
+    ],
   );
 
   console.log("✅ Utilisateur créé :", user.id);
-  db.close();
 }
 
 createUser();

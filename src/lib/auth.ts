@@ -1,9 +1,9 @@
 import { betterAuth } from "better-auth";
-import Database from "better-sqlite3";
-import { dbFilePathName } from "./db/db";
+import { PostgresDialect } from "kysely";
+import { pool } from "./db/db";
 
 export const auth = betterAuth({
-  database: new Database(dbFilePathName),
+  database: new PostgresDialect({ pool }),
   emailAndPassword: {
     enabled: true,
   },

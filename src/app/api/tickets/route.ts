@@ -20,11 +20,11 @@ export const GET = async (request: Request) => {
   }
 
   const tickets = session.user.is_admin
-    ? getTickets({
+    ? await getTickets({
         idClient: clientId ?? undefined,
         idTechnician: technicianId ?? undefined,
       })
-    : getTickets({
+    : await getTickets({
         idClient: session.user.id,
         idTechnician: technicianId ?? undefined,
       });
@@ -87,25 +87,25 @@ export const POST = async (request: Request) => {
   let technician;
   switch (type) {
     case Type.Informatique:
-      technician = getUsers({
+      technician = await getUsers({
         is_admin: true,
         specialite: Specialite.Informatique,
       });
       break;
     case Type.Electricite:
-      technician = getUsers({
+      technician = await getUsers({
         is_admin: true,
         specialite: Specialite.Electronique,
       });
       break;
     case Type.Mecanique:
-      technician = getUsers({
+      technician = await getUsers({
         is_admin: true,
         specialite: Specialite.Mécanique,
       });
       break;
     case Type.IA:
-      technician = getUsers({
+      technician = await getUsers({
         is_admin: true,
         specialite: Specialite.IA,
       });
@@ -114,8 +114,10 @@ export const POST = async (request: Request) => {
 
   const client = await getUserDetails(Number(created_by));
 
-  console.log(`technician: ${technician?.[0]?.telephone}`);
-  console.log(`technician: ${technician?.[0]?.name}`);
+  const selectedTechnician = technician?.[0];
+
+  console.log(`technician: ${selectedTechnician?.telephone}`);
+  console.log(`technician: ${selectedTechnician?.name}`);
   console.log(`client: ${client?.name}`);
   console.log(`description: ${description}`);
   console.log(`type: ${type}`);
@@ -123,8 +125,8 @@ export const POST = async (request: Request) => {
 
   try {
     sendMessage({
-      technicianNumber: technician?.[0]?.telephone ?? "",
-      technicianName: technician?.[0]?.name ?? "",
+      technicianNumber: selectedTechnician?.telephone ?? "",
+      technicianName: selectedTechnician?.name ?? "",
       clientName: client?.name ?? "",
       description: description ?? "",
       type: type ?? "IA",
