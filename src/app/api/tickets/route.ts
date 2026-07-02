@@ -74,7 +74,7 @@ export const POST = async (request: Request) => {
     machine_id: machine_id ?? undefined,
     assigned_to: assigned_to ?? undefined,
     created_by: created_by ?? Number(session.user.id),
-    type: type ?? "IA",
+    type: type ?? Type.IA,
   });
 
   if (!success) {
