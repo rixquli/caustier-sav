@@ -9,6 +9,8 @@ import Separator from "../Separator";
 import Button from "../Button";
 import { useForm } from "react-hook-form";
 import { Machine } from "@/types/machine";
+import { Dispatch, SetStateAction } from "react";
+import { useRouter } from "next/navigation";
 
 export function CreateMachine({
   isOpen,
@@ -19,6 +21,7 @@ export function CreateMachine({
   setIsOpen: (isOpen: boolean) => void;
   clientId?: number;
 }) {
+  const router = useRouter();
   const { register, handleSubmit, reset } = useForm<Omit<Machine, "id">>();
   async function onSubmit(data: Omit<Machine, "id">) {
     let body: Omit<Machine, "id"> = data;
@@ -35,6 +38,7 @@ export function CreateMachine({
       reset();
       setIsOpen(false);
     }
+    router.refresh();
     const result = await response.json();
     console.log(result);
   }

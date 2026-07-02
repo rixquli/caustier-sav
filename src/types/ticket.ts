@@ -14,7 +14,7 @@ export enum Type {
   Informatique = "Informatique",
   Electricite = "Electricite",
   Mecanique = "Mecanique",
-  Autre = "Autre",
+  IA = "IA",
 }
 
 export type Ticket = {

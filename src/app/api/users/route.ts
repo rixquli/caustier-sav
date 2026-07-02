@@ -49,6 +49,7 @@ export const POST = async (request: Request) => {
     code_postal,
     note,
     is_admin,
+    specialite,
   } = body;
   if (!email || !password || !name || !adresse) {
     return NextResponse.json(
@@ -67,6 +68,7 @@ export const POST = async (request: Request) => {
     code_postal,
     note,
     is_admin,
+    specialite,
   });
   if (!success) {
     return NextResponse.json(

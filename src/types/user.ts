@@ -1,16 +1,15 @@
-export type Specialite =
-  | "IA"
-  | "Electronique"
-  | "Mécanique"
-  | "Informatique"
-  | "Autre";
+export enum Specialite {
+  IA = "IA",
+  Electronique = "Electronique",
+  Mécanique = "Mécanique",
+  Informatique = "Informatique",
+}
 
 export const Specialites: Specialite[] = [
-  "IA",
-  "Electronique",
-  "Mécanique",
-  "Informatique",
-  "Autre",
+  Specialite.IA,
+  Specialite.Electronique,
+  Specialite.Mécanique,
+  Specialite.Informatique,
 ];
 
 export type User = {

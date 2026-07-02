@@ -1,0 +1,2 @@
+Wnatshap Business API (Meta Cloud API)
+Le CRM crée le ticket -> il apeple l'API Cloud WhatsApp de Meta -> un message part vers le technicien specialisé dans le type du problème (ex: IA) -> le technicien clique sur Oui -> on récupere via webhook coté CRMp pour marquer le ticket "pris en charge par ..." et débloquer le numéro du client pour le mettre en relation avec le technicien.

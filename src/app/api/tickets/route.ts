@@ -1,6 +1,9 @@
+import { Specialite } from "@/types/user";
 import { auth } from "@/lib/auth";
 import { createTicket, getTickets, updateTicket } from "@/lib/db/tickets";
-import { Ticket } from "@/types/ticket";
+import { getUserDetails, getUsers } from "@/lib/db/user";
+import { sendMessage } from "@/lib/whatsapp/test";
+import { Ticket, Type } from "@/types/ticket";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -53,6 +56,7 @@ export const POST = async (request: Request) => {
     machine_id,
     assigned_to,
     created_by,
+    type,
   } = body;
 
   if (!title || !description) {
@@ -70,11 +74,66 @@ export const POST = async (request: Request) => {
     machine_id: machine_id ?? undefined,
     assigned_to: assigned_to ?? undefined,
     created_by: created_by ?? Number(session.user.id),
+    type: type ?? "IA",
   });
 
   if (!success) {
     return NextResponse.json(
       { message: "Erreur lors de la création du ticket" },
+      { status: 500 },
+    );
+  }
+
+  let technician;
+  switch (type) {
+    case Type.Informatique:
+      technician = getUsers({
+        is_admin: true,
+        specialite: Specialite.Informatique,
+      });
+      break;
+    case Type.Electricite:
+      technician = getUsers({
+        is_admin: true,
+        specialite: Specialite.Electronique,
+      });
+      break;
+    case Type.Mecanique:
+      technician = getUsers({
+        is_admin: true,
+        specialite: Specialite.Mécanique,
+      });
+      break;
+    case Type.IA:
+      technician = getUsers({
+        is_admin: true,
+        specialite: Specialite.IA,
+      });
+      break;
+  }
+
+  const client = await getUserDetails(Number(created_by));
+
+  console.log(`technician: ${technician?.[0]?.telephone}`);
+  console.log(`technician: ${technician?.[0]?.name}`);
+  console.log(`client: ${client?.name}`);
+  console.log(`description: ${description}`);
+  console.log(`type: ${type}`);
+  console.log(`priority: ${priority}`);
+
+  try {
+    sendMessage({
+      technicianNumber: technician?.[0]?.telephone ?? "",
+      technicianName: technician?.[0]?.name ?? "",
+      clientName: client?.name ?? "",
+      description: description ?? "",
+      type: type ?? "IA",
+      priority: priority ?? "Normal",
+    });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { message: "Erreur lors de l'envoi du message" },
       { status: 500 },
     );
   }
@@ -100,6 +159,7 @@ export const PUT = async (request: Request) => {
     machine_id,
     assigned_to,
     created_by,
+    type,
   } = body;
 
   if (
@@ -124,6 +184,7 @@ export const PUT = async (request: Request) => {
     status: status ?? "Ouvert",
     machine_id: machine_id ?? undefined,
     assigned_to: assigned_to ?? undefined,
+    type: type ?? "IA",
   });
 
   if (!success) {

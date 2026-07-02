@@ -1,5 +1,5 @@
 "use client";
-import { Status, Priority, Ticket } from "@/types/ticket";
+import { Status, Priority, Ticket, Type } from "@/types/ticket";
 import {
   useReactTable,
   getCoreRowModel,
@@ -24,6 +24,7 @@ type ApiTicket = {
   created_at?: string;
   assigned_to?: number | string | null;
   assigned_to_name?: string | null;
+  type: Type;
 };
 
 function mapApiTicket(ticket: ApiTicket): Omit<Ticket, "created_by"> {
@@ -39,6 +40,7 @@ function mapApiTicket(ticket: ApiTicket): Omit<Ticket, "created_by"> {
   };
 
   return {
+    type: ticket.type,
     id: ticket.id,
     title: ticket.title,
     description: ticket.description,

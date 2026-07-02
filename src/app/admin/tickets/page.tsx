@@ -54,6 +54,7 @@ export default function Home() {
 
     const result = await response.json();
     console.log(result);
+    setIsOpen(false);
   }
 
   return (
@@ -97,8 +98,7 @@ export default function Home() {
                   { value: Type.Informatique, text: "Informatique" },
                   { value: Type.Electricite, text: "Electricite" },
                   { value: Type.Mecanique, text: "Mecanique" },
-                  { value: Type.Autre, text: "Autre" },
-                  { value: Type.Inconnu, text: "Inconnu" },
+                  { value: Type.IA, text: "IA" },
                 ]}
                 register={register("type", { required: true })}
               >

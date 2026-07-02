@@ -1,20 +1,34 @@
-import { User } from "@/types/user";
+import { Specialite, User } from "@/types/user";
 import { db } from "./db";
 
-export type UserFilter = { id?: number; is_admin?: boolean };
+export type UserFilter = {
+  id?: number;
+  is_admin?: boolean;
+  specialite?: Specialite;
+};
 
 export function getUsers(filter: UserFilter): User[] {
+  const baseQuery = `SELECT * FROM user`;
+  const conditions: string[] = [];
+  const params: string[] = [];
+
   if (filter.id) {
-    return db
-      .prepare(`SELECT * FROM user WHERE id = ?`)
-      .all(filter.id) as User[];
+    conditions.push("id = ?");
+    params.push(filter.id.toString());
   }
   if (filter.is_admin !== undefined) {
-    return db
-      .prepare(`SELECT * FROM user WHERE is_admin = ?`)
-      .all(filter.is_admin ? 1 : 0) as User[];
+    conditions.push("is_admin = ?");
+    params.push(filter.is_admin ? "1" : "0");
   }
-  return db.prepare(`SELECT * FROM user`).all() as User[];
+  if (filter.specialite !== undefined) {
+    conditions.push("specialite = ?");
+    params.push(filter.specialite.toString());
+  }
+
+  const whereClause =
+    conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  return db.prepare(`${baseQuery} ${whereClause}`).all(...params) as User[];
 }
 
 export function getUserDetails(id: User["id"]): User {
@@ -28,7 +42,7 @@ export function updateUser(
     db.prepare(
       `
       UPDATE user
-      SET email = ?, password = ?, name = ?, adresse = ?, telephone = ?, ville = ?, pays = ?, code_postal = ?, note = ?, is_admin = ?
+      SET email = ?, password = ?, name = ?, adresse = ?, telephone = ?, ville = ?, pays = ?, code_postal = ?, note = ?, is_admin = ?, specialite = ?
       WHERE id = ?
     `,
     ).run(
@@ -42,6 +56,7 @@ export function updateUser(
       user.code_postal,
       user.note,
       user.is_admin,
+      user.specialite,
       user.id,
     );
     return true;
@@ -54,7 +69,7 @@ export function updateUser(
 export function createUser(user: Omit<User, "id" | "created_at">): boolean {
   try {
     db.prepare(
-      `INSERT INTO user (email, password, name, adresse, telephone, ville, pays, code_postal, note, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO user (email, password, name, adresse, telephone, ville, pays, code_postal, note, is_admin, specialite) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       user.email,
       user.password,
@@ -66,6 +81,7 @@ export function createUser(user: Omit<User, "id" | "created_at">): boolean {
       user.code_postal,
       user.note,
       user.is_admin,
+      user.specialite,
     );
     return true;
   } catch (e) {

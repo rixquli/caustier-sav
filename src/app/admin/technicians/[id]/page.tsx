@@ -12,7 +12,7 @@ import "./page.css";
 import { BiPlus } from "react-icons/bi";
 import { MdOutlineFactory } from "react-icons/md";
 import { SetStateAction, Dispatch, useEffect, useState } from "react";
-import { User } from "@/types/user";
+import { Specialite, Specialites, User } from "@/types/user";
 import { useParams, useRouter } from "next/navigation";
 import { Ticket } from "@/types/ticket";
 import Modal, {
@@ -21,6 +21,7 @@ import Modal, {
   ModalCloseBtn,
   ModalFooter,
   ModalHeader,
+  ModalSelectInput,
 } from "@/components/Modal/Modal";
 import { useForm } from "react-hook-form";
 import TicketTable from "@/components/client/TicketTable";
@@ -36,6 +37,7 @@ type FormData = {
   telephone?: string;
   email?: string;
   note?: string;
+  specialite?: Specialite;
 };
 export function UpdateClientForm({
   onClose,
@@ -138,6 +140,19 @@ export function UpdateClientForm({
           >
             Nouvelle email du client
           </ModalTextInput>
+          {client?.is_admin && (
+            <ModalSelectInput
+              id="client-specialite"
+              optionList={Object.values(Specialites).map((specialite) => ({
+                text: specialite,
+                value: specialite,
+              }))}
+              placeholder="Specialite"
+              register={register("specialite", { required: false })}
+            >
+              Nouvelle specialite du client
+            </ModalSelectInput>
+          )}
           <ModalTextInput
             id="client-note"
             placeholder="Note"
@@ -226,6 +241,10 @@ export default function ClientDetail() {
                     <div>
                       <span>Téléphone: </span>
                       <span>{client.telephone}</span>
+                    </div>
+                    <div>
+                      <span>Specialite: </span>
+                      <span>{client.specialite}</span>
                     </div>
                   </>
                 )}

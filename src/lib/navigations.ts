@@ -4,6 +4,7 @@ import { IoTicketOutline } from "react-icons/io5";
 import { MdOutlineSettings, MdSupportAgent } from "react-icons/md";
 import { RxDashboard } from "react-icons/rx";
 import { TfiMenuAlt } from "react-icons/tfi";
+import { TbUserShield } from "react-icons/tb";
 
 export const sidebarMenus = {
   client: [
@@ -79,7 +80,7 @@ export const sidebarMenus = {
         {
           name: "Techniciens",
           address: "/admin/technicians",
-          icon: BsPerson,
+          icon: TbUserShield,
         },
       ],
     },
