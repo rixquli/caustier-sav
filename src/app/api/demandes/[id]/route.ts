@@ -8,7 +8,7 @@ import {
   listNotesForDemande,
   updateDemande,
 } from "@/db/db";
-import { getSessionUser, requireUser } from "@/lib/session";
+import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
 import type {
   ApiErrorResponse,
   DeleteDemandeResponse,
@@ -25,17 +25,13 @@ export async function GET(
   _request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<DemandeDetailResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const { id } = await params;
-  const existing = getDemandeById(Number(id));
+  const existing = await getDemandeById(Number(id));
 
   if (!existing) {
     return NextResponse.json(
@@ -51,12 +47,12 @@ export async function GET(
   const isAdmin = user.role === "admin";
 
   if (isAdmin) {
-    updateDemande(existing.id, { readByAdmin: true }, user.id);
+    await updateDemande(existing.id, { readByAdmin: true }, user.id);
   } else {
-    updateDemande(existing.id, { readByClient: true }, user.id);
+    await updateDemande(existing.id, { readByClient: true }, user.id);
   }
 
-  const demande = formatDemandeDisplay(getDemandeById(existing.id));
+  const demande = formatDemandeDisplay(await getDemandeById(existing.id));
 
   if (!demande) {
     return NextResponse.json(
@@ -67,9 +63,9 @@ export async function GET(
 
   return NextResponse.json({
     demande,
-    messages: listMessagesForDemande(existing.id),
-    notes: isAdmin ? listNotesForDemande(existing.id) : [],
-    activity: listActivityForDemande(existing.id, !isAdmin),
+    messages: await listMessagesForDemande(existing.id),
+    notes: isAdmin ? await listNotesForDemande(existing.id) : [],
+    activity: await listActivityForDemande(existing.id, !isAdmin),
   });
 }
 
@@ -77,17 +73,13 @@ export async function PATCH(
   request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<UpdateDemandeResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const { id } = await params;
-  const existing = getDemandeById(Number(id));
+  const existing = await getDemandeById(Number(id));
 
   if (!existing) {
     return NextResponse.json(
@@ -102,7 +94,7 @@ export async function PATCH(
 
   try {
     const body = (await request.json()) as UpdateDemandeRequest;
-    const updated = updateDemande(
+    const updated = await updateDemande(
       existing.id,
       {
         titre: body.titre,
@@ -140,21 +132,17 @@ export async function DELETE(
   _request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<DeleteDemandeResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   if (user.role !== "admin") {
     return NextResponse.json({ error: "Accès refusé." }, { status: 403 });
   }
 
   const { id } = await params;
-  const deleted = deleteDemande(Number(id));
+  const deleted = await deleteDemande(Number(id));
 
   if (!deleted) {
     return NextResponse.json(

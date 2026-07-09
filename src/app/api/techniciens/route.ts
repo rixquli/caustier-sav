@@ -27,7 +27,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") ?? "";
 
-  const techniciens = listTechnicians({ search })
+  const techniciens = (await listTechnicians({ search }))
     .map((row) => formatTechnicienDisplay(row))
     .filter((row): row is NonNullable<typeof row> => row !== null);
 
@@ -57,7 +57,7 @@ export async function POST(
       );
     }
 
-    const row = createTechnician({ name, specialite, phone, email, notes });
+    const row = await createTechnician({ name, specialite, phone, email, notes });
     const technicien = formatTechnicienDisplay(row);
 
     if (!technicien) {

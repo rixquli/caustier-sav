@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { AuthProvider } from "@/context/AuthContext";
 import Header from "@/components/Header";
 import Sidebar from "@/components/Sidebar";
 
-export default function AppShell({ children }) {
+type AppShellProps = {
+  children: ReactNode;
+};
+
+export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const [navOpen, setNavOpen] = useState(false);
   const hideShell = pathname === "/login";

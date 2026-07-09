@@ -6,7 +6,7 @@ import {
   listClients,
 } from "@/db/db";
 import { ACTIVE_STATUSES, CLOSED_STATUSES } from "@/lib/constants";
-import { getSessionUser, requireUser } from "@/lib/session";
+import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
 import type { DemandeDisplay } from "@/types/demande";
 
 const PRIORITY_RANK: Record<string, number> = {
@@ -27,24 +27,24 @@ function sortByPriorityThenActivity(a: DemandeDisplay, b: DemandeDisplay) {
   );
 }
 
-function toDisplayList(rows: ReturnType<typeof getRecentDemandes>): DemandeDisplay[] {
+function toDisplayList(
+  rows: Awaited<ReturnType<typeof getRecentDemandes>>,
+): DemandeDisplay[] {
   return rows
     .map((row) => formatDemandeDisplay(row))
     .filter((row): row is DemandeDisplay => row !== null);
 }
 
 export async function GET() {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const isAdmin = user.role === "admin";
-  const recent = toDisplayList(getRecentDemandes(20, isAdmin ? null : user.id));
+  const recent = toDisplayList(
+    await getRecentDemandes(20, isAdmin ? null : user.id),
+  );
 
   const actives = recent.filter((d) => ACTIVE_STATUSES.includes(d.status));
   const history = recent.filter((d) => CLOSED_STATUSES.includes(d.status));
@@ -53,7 +53,7 @@ export async function GET() {
     return NextResponse.json({ actives, history, recent });
   }
 
-  const allDemandes = toDisplayList(listAllDemandes());
+  const allDemandes = toDisplayList(await listAllDemandes());
   const allActives = allDemandes.filter((d) =>
     ACTIVE_STATUSES.includes(d.status),
   );
@@ -65,7 +65,7 @@ export async function GET() {
     .sort(sortByPriorityThenActivity);
   const unassigned = unassignedAll.slice(0, 6);
   const highPriority = highPriorityAll.slice(0, 6);
-  const clients = listClients({ includeArchived: true });
+  const clients = await listClients({ includeArchived: true });
 
   return NextResponse.json({
     actives,

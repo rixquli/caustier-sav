@@ -4,12 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { DemandeCardList } from "@/components/DemandeList";
 import type { DemandeDisplay } from "@/types/demande";
+import type { UserDisplay } from "@/types/user";
 
 type ClientDashboardProps = {
-  user: {
-    displayName?: string;
-    nom?: string;
-  };
+  user: UserDisplay | null;
 };
 
 export default function ClientDashboard({ user }: ClientDashboardProps) {

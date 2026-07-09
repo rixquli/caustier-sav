@@ -11,9 +11,17 @@ import {
   isLinkActive,
   isNavItemGroup,
   isNavItemSimple,
+  type NavGroupItem,
+  type NavItem,
+  type NavLinkItem,
 } from "@/lib/navigation";
 
-function SidebarLink({ item, pathname }) {
+type SidebarLinkProps = {
+  item: NavLinkItem;
+  pathname: string;
+};
+
+function SidebarLink({ item, pathname }: SidebarLinkProps) {
   const Icon = item.icon;
   const active = isLinkActive(pathname, item.href);
 
@@ -29,7 +37,12 @@ function SidebarLink({ item, pathname }) {
   );
 }
 
-function SidebarGroup({ item, pathname }) {
+type SidebarGroupProps = {
+  item: NavGroupItem;
+  pathname: string;
+};
+
+function SidebarGroup({ item, pathname }: SidebarGroupProps) {
   const activeChildHref = getActiveChildHref(pathname, item.children);
   const hasActiveChild = activeChildHref !== null;
   const [open, setOpen] = useState(hasActiveChild);
@@ -63,7 +76,7 @@ function SidebarGroup({ item, pathname }) {
         <div className="sidebar-subnav">
           {item.children.map((child) => {
             const active = activeChildHref === child.href;
-            const Icon = child.icon;
+            const ChildIcon = child.icon;
 
             return (
               <Link
@@ -72,7 +85,7 @@ function SidebarGroup({ item, pathname }) {
                 className={`sidebar-sublink${active ? " sidebar-sublink--active" : ""}`}
                 aria-current={active ? "page" : undefined}
               >
-                <Icon className="sidebar-children-icon" aria-hidden="true" />
+                <ChildIcon className="sidebar-children-icon" aria-hidden="true" />
                 <span>{child.label}</span>
               </Link>
             );
@@ -83,7 +96,12 @@ function SidebarGroup({ item, pathname }) {
   );
 }
 
-function SidebarItem({ item, pathname }) {
+type SidebarItemProps = {
+  item: NavItem;
+  pathname: string;
+};
+
+function SidebarItem({ item, pathname }: SidebarItemProps) {
   if (isNavItemSimple(item)) {
     return <SidebarLink item={item} pathname={pathname} />;
   }
@@ -95,9 +113,14 @@ function SidebarItem({ item, pathname }) {
   return null;
 }
 
-export default function Sidebar({ open = false }) {
+type SidebarProps = {
+  open?: boolean;
+  onClose?: () => void;
+};
+
+export default function Sidebar({ open = false }: SidebarProps) {
   const pathname = usePathname();
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
   const navItems = user ? getNavForRole(user.role) : [];
 
   return (

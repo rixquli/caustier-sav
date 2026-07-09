@@ -6,7 +6,7 @@ import {
   listNotesForDemande,
   updateNote,
 } from "@/db/db";
-import { getSessionUser, requireAdmin } from "@/lib/session";
+import { getSessionUser, guardAdmin, authErrorResponse } from "@/lib/session";
 import type {
   ApiErrorResponse,
   CreateDemandeNoteRequest,
@@ -25,17 +25,13 @@ export async function GET(
   _request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<ListDemandeNotesResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireAdmin(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardAdmin(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const { id } = await params;
-  const demande = getDemandeById(Number(id));
+  const demande = await getDemandeById(Number(id));
   if (!demande) {
     return NextResponse.json(
       { error: "Demande introuvable." },
@@ -43,24 +39,20 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ notes: listNotesForDemande(demande.id) });
+  return NextResponse.json({ notes: await listNotesForDemande(demande.id) });
 }
 
 export async function POST(
   request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<CreateDemandeNoteResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireAdmin(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardAdmin(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const { id } = await params;
-  const demande = getDemandeById(Number(id));
+  const demande = await getDemandeById(Number(id));
   if (!demande) {
     return NextResponse.json(
       { error: "Demande introuvable." },
@@ -77,11 +69,18 @@ export async function POST(
       );
     }
 
-    const note = createNote({
+    const note = await createNote({
       demandeId: demande.id,
       userId: user.id,
       contenu: body.contenu.trim(),
     });
+
+    if (!note) {
+      return NextResponse.json(
+        { error: "Une erreur est survenue." },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({ note }, { status: 201 });
   } catch {
@@ -95,14 +94,10 @@ export async function POST(
 export async function PATCH(
   request: Request,
 ): Promise<NextResponse<UpdateDemandeNoteResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireAdmin(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardAdmin(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const body = (await request.json()) as UpdateDemandeNoteRequest;
   const { noteId, contenu } = body;
@@ -114,7 +109,7 @@ export async function PATCH(
     );
   }
 
-  const note = updateNote(noteId, contenu.trim(), user.id);
+  const note = await updateNote(noteId, contenu.trim(), user.id);
   if (!note) {
     return NextResponse.json({ error: "Note introuvable." }, { status: 404 });
   }
@@ -125,18 +120,14 @@ export async function PATCH(
 export async function DELETE(
   request: Request,
 ): Promise<NextResponse<DeleteDemandeNoteResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireAdmin(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardAdmin(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const { searchParams } = new URL(request.url);
   const noteId = Number(searchParams.get("noteId"));
-  const note = deleteNote(noteId, user.id);
+  const note = await deleteNote(noteId, user.id);
 
   if (!note) {
     return NextResponse.json({ error: "Note introuvable." }, { status: 404 });

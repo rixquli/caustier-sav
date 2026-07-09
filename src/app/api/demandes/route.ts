@@ -10,7 +10,7 @@ import {
   listDemandesForUser,
   logActivity,
 } from "@/db/db";
-import { getSessionUser, requireUser } from "@/lib/session";
+import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
 import { sendMessage } from "@/lib/whatsapp/test";
 import type {
   ApiErrorResponse,
@@ -22,19 +22,20 @@ import type {
 export async function GET(): Promise<
   NextResponse<ListDemandesResponse | ApiErrorResponse>
 > {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) {
     return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
+      { error: auth.error.error },
+      { status: auth.error.status },
     );
   }
+  const user = auth.user;
 
   const rows =
     user.role === "admin"
-      ? listAllDemandes()
-      : listDemandesForUser(user.id);
+      ? await listAllDemandes()
+      : await listDemandesForUser(user.id);
 
   const demandes = rows
     .map((row) => formatDemandeDisplay(row))
@@ -46,14 +47,15 @@ export async function GET(): Promise<
 export async function POST(
   request: Request,
 ): Promise<NextResponse<CreateDemandeResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) {
     return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
+      { error: auth.error.error },
+      { status: auth.error.status },
     );
   }
+  const user = auth.user;
 
   try {
     const body = (await request.json()) as CreateDemandeRequest;
@@ -83,7 +85,7 @@ export async function POST(
           { status: 400 },
         );
       }
-      const client = findAppUserById(userId);
+      const client = await findAppUserById(userId);
       if (!client || client.role !== "client") {
         return NextResponse.json(
           { error: "Client invalide." },
@@ -93,7 +95,7 @@ export async function POST(
       targetUserId = client.id;
     }
 
-    const row = createDemande({
+    const row = await createDemande({
       userId: targetUserId,
       machineId: machineId ? Number(machineId) : null,
       titre: titre.trim(),
@@ -105,10 +107,10 @@ export async function POST(
     });
 
     const technician = assignedTo
-      ? getTechnicianById(assignedTo)
-      : getTechnicianBySpecialite(type);
+      ? await getTechnicianById(assignedTo)
+      : await getTechnicianBySpecialite(type);
 
-    const client = userId ? findAppUserById(Number(userId)) : null;
+    const client = userId ? await findAppUserById(userId) : null;
 
     try {
       sendMessage({
@@ -119,7 +121,7 @@ export async function POST(
         type: type ?? "IA",
         priority: priorite ?? "Normal",
       }).then(() => {
-        logActivity({
+        void logActivity({
           demandeId: row.id,
           userId: null,
           action: "whatsapp_message_sent",
@@ -142,7 +144,7 @@ export async function POST(
       );
     }
 
-    const demande = formatDemandeDisplay(getDemandeById(row.id));
+    const demande = formatDemandeDisplay(await getDemandeById(row.id));
 
     if (!demande) {
       return NextResponse.json(

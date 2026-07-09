@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Better Auth ---
+
+model User {
+  id                 String    @id
+  name               String
+  email              String    @unique
+  emailVerified      Boolean   @default(false) @map("emailVerified")
+  image              String?
+  createdAt          DateTime  @default(now()) @map("createdAt")
+  updatedAt          DateTime  @updatedAt @map("updatedAt")
+  role               String?   @default("client")
+  nom                String?
+  prenom             String?
+  phone              String?
+  adresse            String?
+  archived           Boolean?  @default(false)
+  mustChangePassword Boolean?  @default(false)
+  notes_admin        String?
+
+  sessions       Session[]
+  accounts       Account[]
+  machines       Machine[]
+  demandes       Demande[]
+  messages       Message[]
+  demandeNotes   DemandeNote[]
+  clientNotes    ClientNote[]  @relation("ClientNotes")
+  adminNotes     ClientNote[]  @relation("AdminNotes")
+  demandeActivity DemandeActivity[]
+  faqHistory     FaqHistory[]
+  notifications  Notification[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expiresAt")
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("createdAt")
+  updatedAt DateTime @updatedAt @map("updatedAt")
+  ipAddress String?  @map("ipAddress")
+  userAgent String?  @map("userAgent")
+  userId    String   @map("userId")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("accountId")
+  providerId            String    @map("providerId")
+  userId                String    @map("userId")
+  accessToken           String?   @map("accessToken")
+  refreshToken          String?   @map("refreshToken")
+  idToken               String?   @map("idToken")
+  accessTokenExpiresAt  DateTime? @map("accessTokenExpiresAt")
+  refreshTokenExpiresAt DateTime? @map("refreshTokenExpiresAt")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("createdAt")
+  updatedAt             DateTime  @updatedAt @map("updatedAt")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expiresAt")
+  createdAt  DateTime @default(now()) @map("createdAt")
+  updatedAt  DateTime @updatedAt @map("updatedAt")
+
+  @@map("verification")
+}
+
+// --- Métier SAV ---
+
+model Machine {
+  id                 Int       @id @default(autoincrement())
+  userId             String    @map("user_id")
+  nom                String
+  marque             String?
+  produits_calibres  String?
+  version_logiciel   String?
+  date_mise_en_service String?
+  pilote_ligne       String?
+  technicien_charge  String?
+  nombre_lignes      Int?
+  serveurs_vision    String?
+  notes_internes     String?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  demandes Demande[]
+
+  @@map("machines")
+}
+
+model Technicien {
+  id               Int      @id @default(autoincrement())
+  name             String
+  specialite       String
+  telephone        String
+  email            String
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  notes_technicien String?
+
+  demandes Demande[]
+  notes    TechnicienNote[]
+
+  @@map("techniciens")
+}
+
+model Demande {
+  id               Int       @id @default(autoincrement())
+  userId           String    @map("user_id")
+  machineId        Int?      @map("machine_id")
+  titre            String
+  description      String
+  type             String
+  priorite         String    @default("normale")
+  status           String    @default("nouvelle")
+  assignedTo       Int?      @map("assigned_to")
+  created_at       DateTime  @default(now())
+  last_activity_at DateTime  @default(now())
+  resolved_at      DateTime?
+  closed_at        DateTime?
+  read_by_client   Boolean   @default(false)
+  read_by_admin    Boolean   @default(false)
+  notes_admin      String?
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  machine       Machine?          @relation(fields: [machineId], references: [id], onDelete: SetNull)
+  technicien    Technicien?       @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  messages      Message[]
+  notes         DemandeNote[]
+  activity      DemandeActivity[]
+  notifications Notification[]
+
+  @@map("demandes")
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  demandeId  Int      @map("demande_id")
+  userId     String   @map("user_id")
+  contenu    String
+  created_at DateTime @default(now())
+
+  demande Demande @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model DemandeNote {
+  id         Int      @id @default(autoincrement())
+  demandeId  Int      @map("demande_id")
+  userId     String   @map("user_id")
+  contenu    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  demande Demande @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("demande_notes")
+}
+
+model ClientNote {
+  id         Int      @id @default(autoincrement())
+  userId     String   @map("user_id")
+  adminId    String   @map("admin_id")
+  contenu    String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  client User @relation("ClientNotes", fields: [userId], references: [id], onDelete: Cascade)
+  admin  User @relation("AdminNotes", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@map("client_notes")
+}
+
+model TechnicienNote {
+  id            Int      @id @default(autoincrement())
+  technicienId  Int      @map("technicien_id")
+  contenu       String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  technicien Technicien @relation(fields: [technicienId], references: [id], onDelete: Cascade)
+
+  @@map("technicien_notes")
+}
+
+model DemandeActivity {
+  id         Int      @id @default(autoincrement())
+  demandeId  Int      @map("demande_id")
+  userId     String?  @map("user_id")
+  action     String
+  details    String?
+  is_public  Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  demande Demande @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("demande_activity")
+}
+
+model Faq {
+  id         Int      @id @default(autoincrement())
+  question   String
+  reponse    String
+  categorie  String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  history FaqHistory[]
+
+  @@map("faq")
+}
+
+model FaqHistory {
+  id         Int      @id @default(autoincrement())
+  faqId      Int      @map("faq_id")
+  userId     String?  @map("user_id")
+  question   String
+  reponse    String
+  categorie  String?
+  created_at DateTime @default(now())
+
+  faq  Faq   @relation(fields: [faqId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("faq_history")
+}
+
+model Notification {
+  id         Int       @id @default(autoincrement())
+  userId     String    @map("user_id")
+  type       String
+  demandeId  Int?      @map("demande_id")
+  message    String
+  read_at    DateTime?
+  created_at DateTime  @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  demande Demande? @relation(fields: [demandeId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

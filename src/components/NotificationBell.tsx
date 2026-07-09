@@ -6,23 +6,33 @@ import { FiBell } from "react-icons/fi";
 import {
   formatNotificationTime,
   getNotificationHref,
+  type NotificationRow,
 } from "@/lib/notifications";
 
 const POLL_INTERVAL_MS = 30_000;
 
-export default function NotificationBell({ isAdmin }) {
+type NotificationBellProps = {
+  isAdmin: boolean;
+};
+
+type NotificationsResponse = {
+  notifications: NotificationRow[];
+  unreadCount: number;
+};
+
+export default function NotificationBell({ isAdmin }: NotificationBellProps) {
   const router = useRouter();
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const containerRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
     try {
       const res = await fetch("/api/notifications");
       if (!res.ok) return;
-      const data = await res.json();
+      const data = (await res.json()) as NotificationsResponse;
       setNotifications(data.notifications ?? []);
       setUnreadCount(data.unreadCount ?? 0);
     } catch {
@@ -37,8 +47,9 @@ export default function NotificationBell({ isAdmin }) {
   }, [fetchNotifications]);
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setOpen(false);
       }
     }
@@ -56,7 +67,7 @@ export default function NotificationBell({ isAdmin }) {
     }
   }
 
-  async function handleOpenNotification(notification) {
+  async function handleOpenNotification(notification: NotificationRow) {
     if (!notification.read_at) {
       try {
         const res = await fetch("/api/notifications", {
@@ -65,7 +76,7 @@ export default function NotificationBell({ isAdmin }) {
           body: JSON.stringify({ id: notification.id }),
         });
         if (res.ok) {
-          const data = await res.json();
+          const data = (await res.json()) as { unreadCount?: number };
           setUnreadCount(data.unreadCount ?? 0);
           setNotifications((prev) =>
             prev.map((n) =>
@@ -94,7 +105,10 @@ export default function NotificationBell({ isAdmin }) {
       if (res.ok) {
         setUnreadCount(0);
         setNotifications((prev) =>
-          prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })),
+          prev.map((n) => ({
+            ...n,
+            read_at: n.read_at ?? new Date().toISOString(),
+          })),
         );
       }
     } catch {

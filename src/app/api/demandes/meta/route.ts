@@ -16,7 +16,7 @@ export async function GET(): Promise<
     );
   }
 
-  const technicians = listTechnicians()
+  const technicians = (await listTechnicians())
     .map((row) => formatTechnicienDisplay(row))
     .filter((row): row is NonNullable<typeof row> => row !== null)
     .map((technicien) => ({
@@ -28,8 +28,8 @@ export async function GET(): Promise<
     }));
 
   return NextResponse.json({
-    clients: listClients(),
-    admins: listAdmins(),
+    clients: await listClients(),
+    admins: await listAdmins(),
     technicians,
   });
 }

@@ -16,19 +16,25 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import Image from "next/image";
 import NotificationBell from "@/components/NotificationBell";
+import type { SearchResponse } from "@/types/user";
 
-const EMPTY_RESULTS = { faq: [], demandes: [], clients: [] };
+const EMPTY_RESULTS: SearchResponse = { faq: [], demandes: [], clients: [] };
 
-export default function Header({ onToggleNav, navOpen }) {
+type HeaderProps = {
+  onToggleNav: () => void;
+  navOpen: boolean;
+};
+
+export default function Header({ onToggleNav, navOpen }: HeaderProps) {
   const { user, logout } = useAuth();
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState(EMPTY_RESULTS);
+  const [results, setResults] = useState<SearchResponse>(EMPTY_RESULTS);
   const [open, setOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const containerRef = useRef(null);
-  const userMenuRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = user?.role === "admin";
   const profileHref = "/compte";
@@ -48,7 +54,7 @@ export default function Header({ onToggleNav, navOpen }) {
         signal: controller.signal,
       })
         .then((res) => (res.ok ? res.json() : EMPTY_RESULTS))
-        .then((data) => {
+        .then((data: SearchResponse) => {
           setResults({
             faq: data.faq ?? [],
             demandes: data.demandes ?? [],
@@ -66,11 +72,12 @@ export default function Header({ onToggleNav, navOpen }) {
   }, [query]);
 
   useEffect(() => {
-    function handleClickOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (containerRef.current && !containerRef.current.contains(target)) {
         setOpen(false);
       }
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setUserMenuOpen(false);
       }
     }
@@ -78,13 +85,13 @@ export default function Header({ onToggleNav, navOpen }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function go(href) {
+  function go(href: string) {
     setOpen(false);
     setQuery("");
     router.push(href);
   }
 
-  function handleSearch(e) {
+  function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
@@ -92,10 +99,10 @@ export default function Header({ onToggleNav, navOpen }) {
     go(`${base}?q=${encodeURIComponent(q)}`);
   }
 
-  const faqHref = (id) => (isAdmin ? `/admin/faq/${id}` : `/faq`);
-  const demandeHref = (id) =>
+  const faqHref = (id: number) => (isAdmin ? `/admin/faq/${id}` : `/faq`);
+  const demandeHref = (id: number) =>
     isAdmin ? `/admin/demandes/${id}` : `/demandes/${id}`;
-  const clientHref = (id) => `/admin/clients/${id}`;
+  const clientHref = (id: string) => `/admin/clients/${id}`;
 
   const total =
     results.faq.length + results.demandes.length + results.clients.length;

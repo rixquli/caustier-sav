@@ -3,8 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { FiX } from "react-icons/fi";
+import type {
+  ApiErrorResponse,
+  ClientDetailResponse,
+  ClientEditFormState,
+  ClientEditModalProps,
+  UpdateClientRequest,
+  UpdateClientResponse,
+} from "@/types/user";
 
-const EMPTY_FORM = {
+const EMPTY_FORM: ClientEditFormState = {
   prenom: "",
   nom: "",
   email: "",
@@ -14,8 +22,12 @@ const EMPTY_FORM = {
   archived: false,
 };
 
-export default function ClientEditModal({ client, onClose, onUpdated }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+export default function ClientEditModal({
+  client,
+  onClose,
+  onUpdated,
+}: ClientEditModalProps) {
+  const [form, setForm] = useState<ClientEditFormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -34,7 +46,7 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
 
     fetch(`/api/clients/${clientId}`)
       .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+      .then((data: ClientDetailResponse | null) => {
         if (!active) return;
         const c = data?.client ?? client;
         setForm({
@@ -52,15 +64,21 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
     return () => {
       active = false;
     };
-  }, [clientId]);
+  }, [clientId, client]);
 
   if (!client) return null;
 
-  function set(key, value) {
+  function setField<K extends keyof ClientEditFormState>(
+    key: K,
+    value: ClientEditFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function patch(body, successMsg) {
+  async function patch(
+    body: UpdateClientRequest,
+    successMsg?: string,
+  ): Promise<UpdateClientResponse | null> {
     setError("");
     setMessage("");
     const res = await fetch(`/api/clients/${clientId}`, {
@@ -68,17 +86,18 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json();
+    const data = (await res.json()) as UpdateClientResponse | ApiErrorResponse;
     if (!res.ok) {
-      setError(data.error || "Une erreur est survenue.");
+      setError("error" in data ? data.error : "Une erreur est survenue.");
       return null;
     }
+    const success = data as UpdateClientResponse;
     if (successMsg) setMessage(successMsg);
-    onUpdated?.(data.client);
-    return data;
+    onUpdated?.(success.client);
+    return success;
   }
 
-  async function handleSave(e) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
@@ -90,7 +109,10 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
 
   async function handleResetPassword() {
     if (!confirm("Réinitialiser le mot de passe de ce client ?")) return;
-    const data = await patch({ resetPassword: true }, "Mot de passe réinitialisé.");
+    const data = await patch(
+      { resetPassword: true },
+      "Mot de passe réinitialisé.",
+    );
     if (data?.tempPassword) setTempPassword(data.tempPassword);
   }
 
@@ -100,7 +122,7 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
       { archived: next },
       next ? "Client archivé." : "Client désarchivé.",
     );
-    if (data) set("archived", next);
+    if (data) setField("archived", next);
   }
 
   return (
@@ -146,7 +168,14 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
               )}
 
               {form.archived && (
-                <div className="alert alert-error" style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", color: "#475569" }}>
+                <div
+                  className="alert alert-error"
+                  style={{
+                    background: "#f1f5f9",
+                    border: "1px solid #e2e8f0",
+                    color: "#475569",
+                  }}
+                >
                   Ce client est archivé.
                 </div>
               )}
@@ -156,14 +185,14 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
                   <label>Prénom</label>
                   <input
                     value={form.prenom}
-                    onChange={(e) => set("prenom", e.target.value)}
+                    onChange={(e) => setField("prenom", e.target.value)}
                   />
                 </div>
                 <div className="form-field">
                   <label>Nom</label>
                   <input
                     value={form.nom}
-                    onChange={(e) => set("nom", e.target.value)}
+                    onChange={(e) => setField("nom", e.target.value)}
                     required
                   />
                 </div>
@@ -175,14 +204,14 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
                   <input
                     type="email"
                     value={form.email}
-                    onChange={(e) => set("email", e.target.value)}
+                    onChange={(e) => setField("email", e.target.value)}
                   />
                 </div>
                 <div className="form-field">
                   <label>Téléphone</label>
                   <input
                     value={form.phone}
-                    onChange={(e) => set("phone", e.target.value)}
+                    onChange={(e) => setField("phone", e.target.value)}
                   />
                 </div>
               </div>
@@ -191,7 +220,7 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
                 <label>Adresse</label>
                 <textarea
                   value={form.adresse}
-                  onChange={(e) => set("adresse", e.target.value)}
+                  onChange={(e) => setField("adresse", e.target.value)}
                   rows={2}
                 />
               </div>
@@ -200,7 +229,7 @@ export default function ClientEditModal({ client, onClose, onUpdated }) {
                 <label>Notes internes admin</label>
                 <textarea
                   value={form.notes_admin}
-                  onChange={(e) => set("notes_admin", e.target.value)}
+                  onChange={(e) => setField("notes_admin", e.target.value)}
                   rows={4}
                   placeholder="Contexte, consignes particulières… Visible uniquement par les administrateurs."
                 />

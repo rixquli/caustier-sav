@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDemandeById, listActivityForDemande } from "@/db/db";
-import { getSessionUser, requireUser } from "@/lib/session";
+import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
 import type {
   ApiErrorResponse,
   ListDemandeActivityResponse,
@@ -14,17 +14,13 @@ export async function GET(
   _request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<ListDemandeActivityResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const { id } = await params;
-  const demande = getDemandeById(Number(id));
+  const demande = await getDemandeById(Number(id));
 
   if (!demande) {
     return NextResponse.json(
@@ -39,6 +35,6 @@ export async function GET(
 
   const publicOnly = user.role !== "admin";
   return NextResponse.json({
-    activity: listActivityForDemande(demande.id, publicOnly),
+    activity: await listActivityForDemande(demande.id, publicOnly),
   });
 }

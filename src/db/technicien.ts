@@ -1,4 +1,5 @@
-import { getDb } from "./db.js";
+import { prisma } from "@/lib/prisma";
+import { toIsoString } from "./helpers";
 import type {
   CreateTechnicienInput,
   CreateTechnicienNoteInput,
@@ -9,9 +10,23 @@ import type {
   TechnicienRow,
   UpdateTechnicienInput,
 } from "@/types/technicien";
+import type { Technicien } from "@/generated/prisma/client";
 
 function parseTechnicienId(id: TechnicienId): number {
   return typeof id === "number" ? id : Number(id);
+}
+
+function mapTechnicienRow(row: Technicien): TechnicienRow {
+  return {
+    id: row.id,
+    name: row.name,
+    specialite: row.specialite,
+    telephone: row.telephone,
+    email: row.email,
+    created_at: toIsoString(row.created_at),
+    updated_at: toIsoString(row.updated_at),
+    notes_technicien: row.notes_technicien,
+  };
 }
 
 export function formatTechnicienDisplay(
@@ -34,125 +49,124 @@ export function formatTechnicienDisplay(
   };
 }
 
-export function createTechnician(
+export async function createTechnician(
   input: CreateTechnicienInput,
-): TechnicienRow | undefined {
-  const db = getDb();
-  const notes = input.notes?.trim() || null;
-
-  const result = db
-    .prepare(
-      `INSERT INTO techniciens (name, specialite, telephone, email, notes_technicien)
-       VALUES (?, ?, ?, ?, ?)`,
-    )
-    .run(
-      input.name.trim(),
-      input.specialite?.trim() ?? "",
-      input.phone?.trim() ?? "",
-      input.email.trim(),
-      notes,
-    );
-
-  return db
-    .prepare("SELECT * FROM techniciens WHERE id = ?")
-    .get(result.lastInsertRowid) as TechnicienRow | undefined;
+): Promise<TechnicienRow | undefined> {
+  const row = await prisma.technicien.create({
+    data: {
+      name: input.name.trim(),
+      specialite: input.specialite?.trim() ?? "",
+      telephone: input.phone?.trim() ?? "",
+      email: input.email.trim(),
+      notes_technicien: input.notes?.trim() || null,
+    },
+  });
+  return mapTechnicienRow(row);
 }
 
-export function updateTechnician(
+export async function updateTechnician(
   id: TechnicienId,
   data: UpdateTechnicienInput,
-): TechnicienRow | null {
-  const existing = getTechnicianById(id);
+): Promise<TechnicienRow | null> {
+  const existing = await getTechnicianById(id);
   if (!existing) return null;
 
-  const db = getDb();
-  const name = data.name ?? existing.name;
-  const specialite = data.specialite ?? existing.specialite;
-  const telephone =
-    data.phone ?? data.phone_number ?? existing.telephone ?? "";
-  const email = data.email ?? existing.email;
-  const notes_technicien =
-    data.notes_technicien !== undefined
-      ? data.notes_technicien
-      : existing.notes_technicien;
-
-  db.prepare(
-    `UPDATE techniciens
-     SET name = ?, specialite = ?, telephone = ?, email = ?, notes_technicien = ?,
-         updated_at = datetime('now')
-     WHERE id = ?`,
-  ).run(name, specialite, telephone, email, notes_technicien, parseTechnicienId(id));
-
-  return getTechnicianById(id) ?? null;
+  const row = await prisma.technicien.update({
+    where: { id: parseTechnicienId(id) },
+    data: {
+      name: data.name ?? existing.name,
+      specialite: data.specialite ?? existing.specialite,
+      telephone: data.phone ?? data.phone_number ?? existing.telephone ?? "",
+      email: data.email ?? existing.email,
+      notes_technicien:
+        data.notes_technicien !== undefined
+          ? data.notes_technicien
+          : existing.notes_technicien,
+    },
+  });
+  return mapTechnicienRow(row);
 }
 
-export function deleteTechnician(id: TechnicienId): TechnicienRow | null {
-  const existing = getTechnicianById(id);
+export async function deleteTechnician(
+  id: TechnicienId,
+): Promise<TechnicienRow | null> {
+  const existing = await getTechnicianById(id);
   if (!existing) return null;
 
-  getDb()
-    .prepare("DELETE FROM techniciens WHERE id = ?")
-    .run(parseTechnicienId(id));
-
+  await prisma.technicien.delete({
+    where: { id: parseTechnicienId(id) },
+  });
   return existing;
 }
 
-export function listTechnicians({
+export async function listTechnicians({
   search = "",
-}: ListTechniciansParams = {}): TechnicienRow[] {
-  const db = getDb();
-  let sql = "SELECT * FROM techniciens WHERE 1=1";
-  const params: string[] = [];
-
-  if (search.trim()) {
-    sql += " AND (name LIKE ? OR email LIKE ? OR telephone LIKE ?)";
-    const query = `%${search.trim()}%`;
-    params.push(query, query, query);
-  }
-
-  sql += " ORDER BY created_at DESC";
-  return db.prepare(sql).all(...params) as TechnicienRow[];
+}: ListTechniciansParams = {}): Promise<TechnicienRow[]> {
+  const rows = await prisma.technicien.findMany({
+    where: search.trim()
+      ? {
+          OR: [
+            { name: { contains: search.trim(), mode: "insensitive" } },
+            { email: { contains: search.trim(), mode: "insensitive" } },
+            { telephone: { contains: search.trim(), mode: "insensitive" } },
+          ],
+        }
+      : undefined,
+    orderBy: { created_at: "desc" },
+  });
+  return rows.map(mapTechnicienRow);
 }
 
-export function getTechnicianById(
+export async function getTechnicianById(
   id: TechnicienId,
-): TechnicienRow | undefined {
-  return getDb()
-    .prepare("SELECT * FROM techniciens WHERE id = ?")
-    .get(parseTechnicienId(id)) as TechnicienRow | undefined;
+): Promise<TechnicienRow | undefined> {
+  const row = await prisma.technicien.findUnique({
+    where: { id: parseTechnicienId(id) },
+  });
+  return row ? mapTechnicienRow(row) : undefined;
 }
 
-export function getTechnicianBySpecialite(
+export async function getTechnicianBySpecialite(
   specialite: string,
-): TechnicienRow | undefined {
-  return getDb()
-    .prepare("SELECT * FROM techniciens WHERE specialite = ?")
-    .get(specialite) as TechnicienRow | undefined;
+): Promise<TechnicienRow | undefined> {
+  const row = await prisma.technicien.findFirst({
+    where: { specialite },
+  });
+  return row ? mapTechnicienRow(row) : undefined;
 }
 
-export function listTechnicianNotes(
+export async function listTechnicianNotes(
   technicienId: TechnicienId,
-): TechnicienNoteRow[] {
-  return getDb()
-    .prepare(
-      `SELECT * FROM technicien_notes
-       WHERE technicien_id = ?
-       ORDER BY created_at DESC`,
-    )
-    .all(String(technicienId)) as TechnicienNoteRow[];
+): Promise<TechnicienNoteRow[]> {
+  const rows = await prisma.technicienNote.findMany({
+    where: { technicienId: parseTechnicienId(technicienId) },
+    orderBy: { created_at: "desc" },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    technicien_id: String(row.technicienId),
+    contenu: row.contenu,
+    created_at: toIsoString(row.created_at),
+    updated_at: toIsoString(row.updated_at),
+  }));
 }
 
-export function createTechnicianNote(
+export async function createTechnicianNote(
   input: CreateTechnicienNoteInput,
-): TechnicienNoteRow {
-  const db = getDb();
-  const result = db
-    .prepare(
-      "INSERT INTO technicien_notes (technicien_id, contenu) VALUES (?, ?)",
-    )
-    .run(String(input.technicien_id), input.contenu);
+): Promise<TechnicienNoteRow> {
+  const row = await prisma.technicienNote.create({
+    data: {
+      technicienId: parseTechnicienId(input.technicien_id),
+      contenu: input.contenu,
+    },
+  });
 
-  return db
-    .prepare("SELECT * FROM technicien_notes WHERE id = ?")
-    .get(result.lastInsertRowid) as TechnicienNoteRow;
+  return {
+    id: row.id,
+    technicien_id: String(row.technicienId),
+    contenu: row.contenu,
+    created_at: toIsoString(row.created_at),
+    updated_at: toIsoString(row.updated_at),
+  };
 }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import type { DemandeDisplay, ListDemandesResponse } from "@/types/demande";
+import type { UserDisplay } from "@/types/user";
 
 const DAY_MS = 1000 * 60 * 60 * 24;
 const LATE_THRESHOLD_DAYS = 14;
@@ -130,11 +131,7 @@ function ChartPanel({
   );
 }
 
-export default function AdminDashboard({
-  user,
-}: {
-  user: { id?: string; displayName?: string; nom?: string };
-}) {
+export default function AdminDashboard({ user }: { user: UserDisplay }) {
   const [demandes, setDemandes] = useState<DemandeDisplay[]>([]);
   const [clientsCount, setClientsCount] = useState(0);
   const [unassigned, setUnassigned] = useState<DemandeDisplay[]>([]);
@@ -157,6 +154,7 @@ export default function AdminDashboard({
   }, []);
 
   const metrics = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const actives = demandes.filter((d) => ACTIVE_STATUSES.includes(d.status));
 

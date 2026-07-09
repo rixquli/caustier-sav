@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { addMessage, getDemandeById } from "@/db/db";
-import { getSessionUser, requireUser } from "@/lib/session";
+import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
 import type {
   ApiErrorResponse,
   CreateDemandeMessageRequest,
@@ -15,17 +15,13 @@ export async function POST(
   request: Request,
   { params }: RouteContext,
 ): Promise<NextResponse<CreateDemandeMessageResponse | ApiErrorResponse>> {
-  const user = await getSessionUser();
-  const authError = requireUser(user);
-  if (authError) {
-    return NextResponse.json(
-      { error: authError.error },
-      { status: authError.status },
-    );
-  }
+  const sessionUser = await getSessionUser();
+  const auth = guardUser(sessionUser);
+  if (!auth.ok) return authErrorResponse(auth.error);
+  const user = auth.user;
 
   const { id } = await params;
-  const demande = getDemandeById(Number(id));
+  const demande = await getDemandeById(Number(id));
 
   if (!demande) {
     return NextResponse.json(
@@ -56,11 +52,18 @@ export async function POST(
       );
     }
 
-    const message = addMessage({
+    const message = await addMessage({
       demandeId: demande.id,
       userId: user.id,
       contenu: contenu.trim(),
     });
+
+    if (!message) {
+      return NextResponse.json(
+        { error: "Une erreur est survenue." },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch {

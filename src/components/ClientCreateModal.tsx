@@ -2,8 +2,14 @@
 
 import { useState } from "react";
 import { FiX } from "react-icons/fi";
+import type {
+  ApiErrorResponse,
+  ClientCreateFormState,
+  ClientCreateModalProps,
+  CreateClientResponse,
+} from "@/types/user";
 
-const EMPTY_FORM = {
+const EMPTY_FORM: ClientCreateFormState = {
   prenom: "",
   nom: "",
   email: "",
@@ -11,17 +17,23 @@ const EMPTY_FORM = {
   adresse: "",
 };
 
-export default function ClientCreateModal({ onClose, onCreated }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+export default function ClientCreateModal({
+  onClose,
+  onCreated,
+}: ClientCreateModalProps) {
+  const [form, setForm] = useState<ClientCreateFormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tempPassword, setTempPassword] = useState("");
 
-  function set(key, value) {
+  function setField<K extends keyof ClientCreateFormState>(
+    key: K,
+    value: ClientCreateFormState[K],
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function handleSubmit(e) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
@@ -32,15 +44,16 @@ export default function ClientCreateModal({ onClose, onCreated }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
+      const data = (await res.json()) as CreateClientResponse | ApiErrorResponse;
 
       if (!res.ok) {
-        setError(data.error || "Erreur lors de la création.");
+        setError("error" in data ? data.error : "Erreur lors de la création.");
         return;
       }
 
-      setTempPassword(data.tempPassword);
-      onCreated?.(data.client);
+      const success = data as CreateClientResponse;
+      setTempPassword(success.tempPassword);
+      onCreated?.(success.client);
     } catch {
       setError("Erreur réseau.");
     } finally {
@@ -98,7 +111,7 @@ export default function ClientCreateModal({ onClose, onCreated }) {
                   <input
                     id="create-prenom"
                     value={form.prenom}
-                    onChange={(e) => set("prenom", e.target.value)}
+                    onChange={(e) => setField("prenom", e.target.value)}
                   />
                 </div>
                 <div className="form-field">
@@ -106,7 +119,7 @@ export default function ClientCreateModal({ onClose, onCreated }) {
                   <input
                     id="create-nom"
                     value={form.nom}
-                    onChange={(e) => set("nom", e.target.value)}
+                    onChange={(e) => setField("nom", e.target.value)}
                     required
                   />
                 </div>
@@ -119,7 +132,7 @@ export default function ClientCreateModal({ onClose, onCreated }) {
                     id="create-email"
                     type="email"
                     value={form.email}
-                    onChange={(e) => set("email", e.target.value)}
+                    onChange={(e) => setField("email", e.target.value)}
                     required
                   />
                 </div>
@@ -128,7 +141,7 @@ export default function ClientCreateModal({ onClose, onCreated }) {
                   <input
                     id="create-phone"
                     value={form.phone}
-                    onChange={(e) => set("phone", e.target.value)}
+                    onChange={(e) => setField("phone", e.target.value)}
                   />
                 </div>
               </div>
@@ -138,7 +151,7 @@ export default function ClientCreateModal({ onClose, onCreated }) {
                 <textarea
                   id="create-adresse"
                   value={form.adresse}
-                  onChange={(e) => set("adresse", e.target.value)}
+                  onChange={(e) => setField("adresse", e.target.value)}
                   rows={2}
                 />
               </div>

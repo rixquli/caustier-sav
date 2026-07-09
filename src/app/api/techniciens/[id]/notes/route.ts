@@ -30,7 +30,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const technicien = getTechnicianById(id);
+  const technicien = await getTechnicianById(id);
   if (!technicien) {
     return NextResponse.json(
       { error: "Technicien introuvable." },
@@ -38,7 +38,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ notes: listTechnicianNotes(id) });
+  return NextResponse.json({ notes: await listTechnicianNotes(id) });
 }
 
 export async function POST(
@@ -55,7 +55,7 @@ export async function POST(
   }
 
   const { id } = await params;
-  const technicien = getTechnicianById(id);
+  const technicien = await getTechnicianById(id);
   if (!technicien) {
     return NextResponse.json(
       { error: "Technicien introuvable." },
@@ -72,7 +72,7 @@ export async function POST(
       );
     }
 
-    const note = createTechnicianNote({
+    const note = await createTechnicianNote({
       technicien_id: id,
       contenu: body.contenu.trim(),
     });

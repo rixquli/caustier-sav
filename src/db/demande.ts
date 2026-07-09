@@ -1,5 +1,7 @@
-import { getDb, createNotification, notifyAdmins as notifyAdminsRaw } from "./db.js";
+import { prisma } from "@/lib/prisma";
+import { createNotification, notifyAdmins as notifyAdminsRaw } from "./notifications";
 import { buildStatusChangeMessage } from "@/lib/notifications";
+import { parseOptionalInt, toBoolFlag, toIsoString, toIsoStringOrNull } from "./helpers";
 import type { TechnicienId } from "@/types/technicien";
 import type {
   CreateDemandeInput,
@@ -10,31 +12,69 @@ import type {
   LogDemandeActivityInput,
   UpdateDemandeInput,
 } from "@/types/demande";
+import type { Prisma } from "@/generated/prisma/client";
 
-const DEMANDE_SELECT = `
-  SELECT d.*,
-         u.nom AS client_nom, u.prenom AS client_prenom, u.name AS client_name,
-         u.email AS client_email, u.phone AS client_phone, u.adresse AS client_adresse,
-         u.notes_admin AS client_notes_admin,
-         a.name AS assignee_name,
-         m.nom AS machine_nom
-  FROM demandes d
-  JOIN user u ON u.id = d.user_id
-  LEFT JOIN techniciens a ON a.id = d.assigned_to
-  LEFT JOIN machines m ON m.id = d.machine_id
-`;
+const demandeInclude = {
+  user: {
+    select: {
+      nom: true,
+      prenom: true,
+      name: true,
+      email: true,
+      phone: true,
+      adresse: true,
+      notes_admin: true,
+    },
+  },
+  technicien: { select: { name: true } },
+  machine: { select: { nom: true } },
+} satisfies Prisma.DemandeInclude;
+
+type DemandeWithJoins = Prisma.DemandeGetPayload<{
+  include: typeof demandeInclude;
+}>;
 
 function parseDemandeId(id: DemandeId): number {
   return typeof id === "number" ? id : Number(id);
 }
 
-function notifyAdmins(params: {
+async function notifyAdmins(params: {
   type: string;
   demandeId: number;
   message: string;
   excludeUserId?: string | null;
-}): void {
-  (notifyAdminsRaw as (input: typeof params) => void)(params);
+}): Promise<void> {
+  await notifyAdminsRaw(params);
+}
+
+function mapDemandeRowJoined(row: DemandeWithJoins): DemandeRowJoined {
+  return {
+    id: row.id,
+    user_id: row.userId,
+    machine_id: row.machineId,
+    titre: row.titre,
+    description: row.description,
+    type: row.type,
+    priorite: row.priorite,
+    status: row.status,
+    assigned_to: row.assignedTo != null ? String(row.assignedTo) : null,
+    created_at: toIsoString(row.created_at),
+    last_activity_at: toIsoString(row.last_activity_at),
+    resolved_at: toIsoStringOrNull(row.resolved_at),
+    closed_at: toIsoStringOrNull(row.closed_at),
+    read_by_client: toBoolFlag(row.read_by_client),
+    read_by_admin: toBoolFlag(row.read_by_admin),
+    notes_admin: row.notes_admin,
+    client_nom: row.user.nom,
+    client_prenom: row.user.prenom,
+    client_name: row.user.name,
+    client_email: row.user.email,
+    client_phone: row.user.phone,
+    client_adresse: row.user.adresse,
+    client_notes_admin: row.user.notes_admin,
+    assignee_name: row.technicien?.name ?? null,
+    machine_nom: row.machine?.nom ?? null,
+  };
 }
 
 export function formatDemandeDisplay(
@@ -79,99 +119,112 @@ export function formatDemandeDisplay(
   };
 }
 
-export function touchDemandeActivity(demandeId: number): void {
-  getDb()
-    .prepare(
-      "UPDATE demandes SET last_activity_at = datetime('now') WHERE id = ?",
-    )
-    .run(demandeId);
+export async function touchDemandeActivity(demandeId: number): Promise<void> {
+  await prisma.demande.update({
+    where: { id: demandeId },
+    data: { last_activity_at: new Date() },
+  });
 }
 
-export function logActivity({
+export async function logActivity({
   demandeId,
   userId,
   action,
   details = null,
   isPublic = true,
-}: LogDemandeActivityInput): void {
-  getDb()
-    .prepare(
-      `INSERT INTO demande_activity (demande_id, user_id, action, details, is_public)
-       VALUES (?, ?, ?, ?, ?)`,
-    )
-    .run(
+}: LogDemandeActivityInput): Promise<void> {
+  await prisma.demandeActivity.create({
+    data: {
       demandeId,
-      userId ?? null,
+      userId: userId ?? null,
       action,
-      details ? JSON.stringify(details) : null,
-      isPublic ? 1 : 0,
-    );
-  touchDemandeActivity(demandeId);
+      details: details ? JSON.stringify(details) : null,
+      is_public: isPublic,
+    },
+  });
+  await touchDemandeActivity(demandeId);
 }
 
-export function listActivityForDemande(
+export async function listActivityForDemande(
   demandeId: number,
   publicOnly = false,
-): DemandeActivityRow[] {
-  const sql = publicOnly
-    ? `SELECT a.*, u.nom AS user_nom, u.prenom AS user_prenom, u.name AS user_name, u.role AS user_role
-       FROM demande_activity a
-       LEFT JOIN user u ON u.id = a.user_id
-       WHERE a.demande_id = ? AND a.is_public = 1
-       ORDER BY a.created_at ASC`
-    : `SELECT a.*, u.nom AS user_nom, u.prenom AS user_prenom, u.name AS user_name, u.role AS user_role
-       FROM demande_activity a
-       LEFT JOIN user u ON u.id = a.user_id
-       WHERE a.demande_id = ?
-       ORDER BY a.created_at ASC`;
+): Promise<DemandeActivityRow[]> {
+  const rows = await prisma.demandeActivity.findMany({
+    where: {
+      demandeId,
+      ...(publicOnly ? { is_public: true } : {}),
+    },
+    include: {
+      user: {
+        select: { nom: true, prenom: true, name: true, role: true },
+      },
+    },
+    orderBy: { created_at: "asc" },
+  });
 
-  return getDb().prepare(sql).all(demandeId) as DemandeActivityRow[];
+  return rows.map((row) => ({
+    id: row.id,
+    demande_id: row.demandeId,
+    user_id: row.userId,
+    action: row.action,
+    details: row.details,
+    is_public: toBoolFlag(row.is_public),
+    created_at: toIsoString(row.created_at),
+    user_nom: row.user?.nom ?? null,
+    user_prenom: row.user?.prenom ?? null,
+    user_name: row.user?.name ?? null,
+    user_role: row.user?.role ?? null,
+  }));
 }
 
-export function getDemandeById(
+export async function getDemandeById(
   id: DemandeId,
-): DemandeRowJoined | undefined {
-  return getDb()
-    .prepare(`${DEMANDE_SELECT} WHERE d.id = ?`)
-    .get(parseDemandeId(id)) as DemandeRowJoined | undefined;
+): Promise<DemandeRowJoined | undefined> {
+  const row = await prisma.demande.findUnique({
+    where: { id: parseDemandeId(id) },
+    include: demandeInclude,
+  });
+  return row ? mapDemandeRowJoined(row) : undefined;
 }
 
-export function listDemandesForUser(userId: string): DemandeRowJoined[] {
-  return getDb()
-    .prepare(
-      `${DEMANDE_SELECT} WHERE d.user_id = ? ORDER BY d.created_at DESC`,
-    )
-    .all(userId) as DemandeRowJoined[];
+export async function listDemandesForUser(
+  userId: string,
+): Promise<DemandeRowJoined[]> {
+  const rows = await prisma.demande.findMany({
+    where: { userId },
+    include: demandeInclude,
+    orderBy: { created_at: "desc" },
+  });
+  return rows.map(mapDemandeRowJoined);
 }
 
-export function listAllDemandes(): DemandeRowJoined[] {
-  return getDb()
-    .prepare(`${DEMANDE_SELECT} ORDER BY d.created_at DESC`)
-    .all() as DemandeRowJoined[];
+export async function listAllDemandes(): Promise<DemandeRowJoined[]> {
+  const rows = await prisma.demande.findMany({
+    include: demandeInclude,
+    orderBy: { created_at: "desc" },
+  });
+  return rows.map(mapDemandeRowJoined);
 }
 
-export function createDemande(input: CreateDemandeInput): DemandeRowJoined {
-  const result = getDb()
-    .prepare(
-      `INSERT INTO demandes (user_id, machine_id, titre, description, type, priorite, assigned_to)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      input.userId,
-      input.machineId ?? null,
-      input.titre,
-      input.description,
-      input.type,
-      input.priorite,
-      input.assignedTo ?? null,
-    );
+export async function createDemande(
+  input: CreateDemandeInput,
+): Promise<DemandeRowJoined> {
+  const created = await prisma.demande.create({
+    data: {
+      userId: input.userId,
+      machineId: input.machineId ?? null,
+      titre: input.titre,
+      description: input.description,
+      type: input.type,
+      priorite: input.priorite,
+      assignedTo: parseOptionalInt(input.assignedTo ?? null),
+    },
+    include: demandeInclude,
+  });
 
-  const demande = getDemandeById(result.lastInsertRowid as number);
-  if (!demande) {
-    throw new Error("Demande créée introuvable.");
-  }
+  const demande = mapDemandeRowJoined(created);
 
-  logActivity({
+  await logActivity({
     demandeId: demande.id,
     userId: input.actorId ?? null,
     action: "creation",
@@ -183,7 +236,7 @@ export function createDemande(input: CreateDemandeInput): DemandeRowJoined {
     isPublic: true,
   });
 
-  notifyAdmins({
+  await notifyAdmins({
     type: "nouvelle_demande",
     demandeId: demande.id,
     message: `Nouvelle demande #${demande.id} : ${input.titre}`,
@@ -226,16 +279,15 @@ function normalizeUpdateFields(
   return normalized;
 }
 
-export function updateDemande(
+export async function updateDemande(
   id: DemandeId,
   fields: UpdateDemandeInput,
   actorId: string | null,
   { skipNotifications = false }: { skipNotifications?: boolean } = {},
-): DemandeRowJoined | null {
-  const existing = getDemandeById(id);
+): Promise<DemandeRowJoined | null> {
+  const existing = await getDemandeById(id);
   if (!existing) return null;
 
-  const db = getDb();
   const normalized = normalizeUpdateFields(fields);
   const updates: Record<string, unknown> = {};
   const trackFields = [
@@ -258,39 +310,65 @@ export function updateDemande(
     }
   }
 
+  const data: Prisma.DemandeUncheckedUpdateInput = {};
+
   if (normalized.notes_admin !== undefined) {
-    db.prepare("UPDATE demandes SET notes_admin = ? WHERE id = ?").run(
+    data.notes_admin =
       typeof normalized.notes_admin === "string"
         ? normalized.notes_admin.trim() || null
-        : normalized.notes_admin,
-      parseDemandeId(id),
-    );
+        : (normalized.notes_admin as string | null);
   }
 
   if (normalized.status !== undefined) {
+    data.status = String(normalized.status);
     if (normalized.status === "resolue" && existing.status !== "resolue") {
-      db.prepare(
-        "UPDATE demandes SET resolved_at = datetime('now') WHERE id = ?",
-      ).run(parseDemandeId(id));
+      data.resolved_at = new Date();
     }
     if (normalized.status === "fermee" && existing.status !== "fermee") {
-      db.prepare(
-        "UPDATE demandes SET closed_at = datetime('now') WHERE id = ?",
-      ).run(parseDemandeId(id));
+      data.closed_at = new Date();
     }
   }
 
-  if (Object.keys(updates).length > 0) {
-    const sets = Object.keys(updates).map((k) => `${k} = ?`);
-    const values = Object.values(updates);
-    sets.push("last_activity_at = datetime('now')");
-    values.push(parseDemandeId(id));
-    db.prepare(`UPDATE demandes SET ${sets.join(", ")} WHERE id = ?`).run(
-      ...values,
+  if (updates.titre !== undefined) data.titre = String(updates.titre);
+  if (updates.description !== undefined) {
+    data.description = String(updates.description);
+  }
+  if (updates.type !== undefined) data.type = String(updates.type);
+  if (updates.priorite !== undefined) data.priorite = String(updates.priorite);
+  if (updates.status !== undefined) data.status = String(updates.status);
+  if (updates.machine_id !== undefined) {
+    data.machineId = updates.machine_id as number | null;
+  }
+  if (updates.user_id !== undefined) {
+    data.userId = String(updates.user_id);
+  }
+  if (updates.assigned_to !== undefined) {
+    data.assignedTo = parseOptionalInt(
+      updates.assigned_to as string | number | null,
     );
+  }
 
+  if (Object.keys(updates).length > 0) {
+    data.last_activity_at = new Date();
+  }
+
+  if (normalized.read_by_client !== undefined) {
+    data.read_by_client = Boolean(normalized.read_by_client);
+  }
+  if (normalized.read_by_admin !== undefined) {
+    data.read_by_admin = Boolean(normalized.read_by_admin);
+  }
+
+  if (Object.keys(data).length > 0) {
+    await prisma.demande.update({
+      where: { id: parseDemandeId(id) },
+      data,
+    });
+  }
+
+  if (Object.keys(updates).length > 0) {
     if (updates.status) {
-      logActivity({
+      await logActivity({
         demandeId: parseDemandeId(id),
         userId: actorId,
         action: "status_change",
@@ -302,7 +380,7 @@ export function updateDemande(
       });
 
       if (!skipNotifications) {
-        createNotification({
+        await createNotification({
           userId: existing.user_id,
           type: "statut_change",
           demandeId: parseDemandeId(id),
@@ -310,7 +388,7 @@ export function updateDemande(
         });
       }
     } else {
-      logActivity({
+      await logActivity({
         demandeId: parseDemandeId(id),
         userId: actorId,
         action: "field_update",
@@ -320,59 +398,45 @@ export function updateDemande(
     }
   }
 
-  if (normalized.read_by_client !== undefined) {
-    db.prepare("UPDATE demandes SET read_by_client = ? WHERE id = ?").run(
-      normalized.read_by_client ? 1 : 0,
-      parseDemandeId(id),
-    );
-  }
-
-  if (normalized.read_by_admin !== undefined) {
-    db.prepare("UPDATE demandes SET read_by_admin = ? WHERE id = ?").run(
-      normalized.read_by_admin ? 1 : 0,
-      parseDemandeId(id),
-    );
-  }
-
-  return getDemandeById(id) ?? null;
+  return (await getDemandeById(id)) ?? null;
 }
 
-export function deleteDemande(id: DemandeId): DemandeRowJoined | null {
-  const existing = getDemandeById(id);
+export async function deleteDemande(
+  id: DemandeId,
+): Promise<DemandeRowJoined | null> {
+  const existing = await getDemandeById(id);
   if (!existing) return null;
 
-  getDb()
-    .prepare("DELETE FROM demandes WHERE id = ?")
-    .run(parseDemandeId(id));
+  await prisma.demande.delete({
+    where: { id: parseDemandeId(id) },
+  });
 
   return existing;
 }
 
-export function getRecentDemandes(
+export async function getRecentDemandes(
   limit = 10,
   userId: string | null = null,
-): DemandeRowJoined[] {
-  if (userId) {
-    return getDb()
-      .prepare(
-        `${DEMANDE_SELECT} WHERE d.user_id = ? ORDER BY d.created_at DESC LIMIT ?`,
-      )
-      .all(userId, limit) as DemandeRowJoined[];
-  }
-
-  return getDb()
-    .prepare(`${DEMANDE_SELECT} ORDER BY d.created_at DESC LIMIT ?`)
-    .all(limit) as DemandeRowJoined[];
+): Promise<DemandeRowJoined[]> {
+  const rows = await prisma.demande.findMany({
+    where: userId ? { userId } : undefined,
+    include: demandeInclude,
+    orderBy: { created_at: "desc" },
+    take: limit,
+  });
+  return rows.map(mapDemandeRowJoined);
 }
 
-export function listDemandesForTechnician(
+export async function listDemandesForTechnician(
   technicianId: TechnicienId,
-): DemandeDisplay[] {
-  return (
-    getDb()
-      .prepare(`${DEMANDE_SELECT} WHERE d.assigned_to = ? ORDER BY d.created_at DESC`)
-      .all(String(technicianId)) as DemandeRowJoined[]
-  )
-    .map((row) => formatDemandeDisplay(row))
+): Promise<DemandeDisplay[]> {
+  const rows = await prisma.demande.findMany({
+    where: { assignedTo: parseOptionalInt(technicianId) ?? undefined },
+    include: demandeInclude,
+    orderBy: { created_at: "desc" },
+  });
+
+  return rows
+    .map((row) => formatDemandeDisplay(mapDemandeRowJoined(row)))
     .filter((row): row is DemandeDisplay => row !== null);
 }

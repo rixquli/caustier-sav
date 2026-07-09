@@ -34,7 +34,7 @@ export async function GET(
   }
 
   const { id } = await params;
-  const technicien = formatTechnicienDisplay(getTechnicianById(id));
+  const technicien = formatTechnicienDisplay(await getTechnicianById(id));
 
   if (!technicien) {
     return NextResponse.json(
@@ -43,7 +43,7 @@ export async function GET(
     );
   }
 
-  const machines = listMachinesForUser(id) as TechnicienMachineSummary[];
+  const machines = (await listMachinesForUser(id)) as TechnicienMachineSummary[];
 
   return NextResponse.json({ technicien, machines });
 }
@@ -62,7 +62,7 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const existing = getTechnicianById(id);
+  const existing = await getTechnicianById(id);
 
   if (!existing) {
     return NextResponse.json(
@@ -75,7 +75,7 @@ export async function PATCH(
     const body = (await request.json()) as UpdateTechnicienRequest;
     const { name, specialite, phone_number, email, notes_technicien } = body;
 
-    const updated = updateTechnician(id, {
+    const updated = await updateTechnician(id, {
       name,
       specialite,
       phone_number,
@@ -117,7 +117,7 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const deleted = deleteTechnician(id);
+  const deleted = await deleteTechnician(id);
   const technicien = formatTechnicienDisplay(deleted);
 
   if (!technicien) {
