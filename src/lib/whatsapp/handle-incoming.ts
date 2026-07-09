@@ -6,6 +6,8 @@ import {
 } from "@/db/db";
 import { createNotification } from "@/db/notifications";
 import type { WhatsappIncomingMessage } from "@/types/whatsapp";
+import { waLog, waWarn } from "./logger";
+import { normalizeWhatsappPhone } from "./phone";
 import {
   classifyTechnicianReply,
   extractMessageText,
@@ -14,33 +16,74 @@ import {
 export async function handleIncomingWhatsappMessage(
   message: WhatsappIncomingMessage,
 ): Promise<void> {
+  waLog("Message entrant", {
+    messageId: message.id,
+    from: message.from,
+    fromNormalized: normalizeWhatsappPhone(message.from),
+    type: message.type,
+    timestamp: message.timestamp,
+    raw: message,
+  });
+
   const text = extractMessageText(message);
   if (!text) {
-    console.log("WhatsApp: message sans texte exploitable", message.type);
+    waWarn("Message ignoré — pas de texte exploitable", {
+      type: message.type,
+      messageId: message.id,
+    });
     return;
   }
 
+  waLog("Texte extrait", { text });
+
   const replyKind = classifyTechnicianReply(text);
+  waLog("Classification réponse", { text, replyKind });
+
   if (replyKind === "unknown") {
-    console.log(`WhatsApp: réponse non reconnue "${text}" de ${message.from}`);
+    waWarn("Réponse non reconnue (attendu: oui/non)", {
+      text,
+      from: message.from,
+    });
     return;
   }
 
   const technician = await getTechnicianByPhone(message.from);
   if (!technician) {
-    console.warn(`WhatsApp: technicien introuvable pour ${message.from}`);
+    waWarn("Technicien introuvable pour ce numéro", {
+      from: message.from,
+      fromNormalized: normalizeWhatsappPhone(message.from),
+      hint: "Vérifiez que le téléphone du technicien en base correspond (06… ou 33…)",
+    });
     return;
   }
+
+  waLog("Technicien trouvé", {
+    id: technician.id,
+    name: technician.name,
+    telephone: technician.telephone,
+    specialite: technician.specialite,
+  });
 
   const demande = await findAwaitingTechnicianResponse(technician.id);
   if (!demande) {
-    console.warn(
-      `WhatsApp: aucune demande en attente pour le technicien ${technician.id}`,
-    );
+    waWarn("Aucune demande en attente", {
+      technicianId: technician.id,
+      hint: "Il faut une demande avec status=nouvelle assignée à ce technicien (ou non assignée avec type=spécialité)",
+    });
     return;
   }
 
+  waLog("Demande trouvée", {
+    demandeId: demande.id,
+    status: demande.status,
+    assignedTo: demande.assigned_to,
+    type: demande.type,
+    titre: demande.titre,
+  });
+
   if (replyKind === "accept") {
+    waLog("Traitement acceptation…", { demandeId: demande.id });
+
     await updateDemande(
       demande.id,
       {
@@ -71,8 +114,15 @@ export async function handleIncomingWhatsappMessage(
       message: `Demande #${demande.id} · ${technician.name} a accepté votre demande.`,
     });
 
+    waLog("Acceptation OK", {
+      demandeId: demande.id,
+      newStatus: "en_cours",
+      technicianId: technician.id,
+    });
     return;
   }
+
+  waLog("Traitement refus…", { demandeId: demande.id });
 
   await logActivity({
     demandeId: demande.id,
@@ -87,4 +137,6 @@ export async function handleIncomingWhatsappMessage(
     },
     isPublic: true,
   });
+
+  waLog("Refus enregistré", { demandeId: demande.id });
 }

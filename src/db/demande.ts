@@ -438,13 +438,24 @@ export async function findAwaitingTechnicianResponse(
     include: demandeInclude,
     orderBy: { created_at: "desc" },
   });
-  if (assigned) return mapDemandeRowJoined(assigned);
+  if (assigned) {
+    console.log("[WhatsApp Webhook] Demande assignée trouvée", {
+      demandeId: assigned.id,
+      technicianId: techId,
+    });
+    return mapDemandeRowJoined(assigned);
+  }
 
   const technician = await prisma.technicien.findUnique({
     where: { id: techId },
     select: { specialite: true },
   });
-  if (!technician?.specialite) return undefined;
+  if (!technician?.specialite) {
+    console.log("[WhatsApp Webhook] Pas de spécialité pour technicien", {
+      technicianId: techId,
+    });
+    return undefined;
+  }
 
   const bySpecialite = await prisma.demande.findFirst({
     where: {
@@ -456,7 +467,20 @@ export async function findAwaitingTechnicianResponse(
     orderBy: { created_at: "desc" },
   });
 
-  return bySpecialite ? mapDemandeRowJoined(bySpecialite) : undefined;
+  if (bySpecialite) {
+    console.log("[WhatsApp Webhook] Demande par spécialité trouvée", {
+      demandeId: bySpecialite.id,
+      type: bySpecialite.type,
+      specialite: technician.specialite,
+    });
+    return mapDemandeRowJoined(bySpecialite);
+  }
+
+  console.log("[WhatsApp Webhook] Aucune demande nouvelle", {
+    technicianId: techId,
+    specialite: technician.specialite,
+  });
+  return undefined;
 }
 
 export async function listDemandesForTechnician(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleIncomingWhatsappMessage } from "@/lib/whatsapp/handle-incoming";
+import { waError, waLog, waWarn } from "@/lib/whatsapp/logger";
 import { verifyWhatsappSignature } from "@/lib/whatsapp/verify";
 import type {
   ApiErrorResponse,
@@ -17,54 +18,113 @@ export async function GET(
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
+  waLog("GET vérification Meta reçue", {
+    mode,
+    tokenMatch: token === VERIFY_TOKEN,
+    hasChallenge: Boolean(challenge),
+    verifyTokenConfigured: Boolean(VERIFY_TOKEN),
+  });
+
   if (mode === "subscribe" && token === VERIFY_TOKEN && challenge) {
+    waLog("Vérification Meta OK — challenge renvoyé");
     return new NextResponse(challenge, { status: 200 });
   }
 
+  waWarn("Vérification Meta refusée", {
+    mode,
+    expectedToken: VERIFY_TOKEN ? "(configuré)" : "(manquant)",
+    receivedToken: token ?? "(absent)",
+  });
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
 export async function POST(
   request: NextRequest,
 ): Promise<NextResponse<WhatsappWebhookOkResponse | ApiErrorResponse>> {
+  const receivedAt = new Date().toISOString();
+  const signatureHeader = request.headers.get("x-hub-signature-256");
   const rawBody = await request.text();
 
-  if (
-    !verifyWhatsappSignature(
-      rawBody,
-      request.headers.get("x-hub-signature-256"),
-    )
-  ) {
+  waLog("POST reçu", {
+    receivedAt,
+    bodyLength: rawBody.length,
+    hasSignature: Boolean(signatureHeader),
+    appSecretConfigured: Boolean(process.env.WHATSAPP_APP_SECRET),
+  });
+
+  if (!rawBody.length) {
+    waWarn("Corps de requête vide — Meta n'a peut-être pas atteint le serveur");
+    return NextResponse.json({ error: "Empty body" }, { status: 400 });
+  }
+
+  if (!verifyWhatsappSignature(rawBody, signatureHeader)) {
+    waWarn("Signature invalide — requête rejetée", {
+      hasSignatureHeader: Boolean(signatureHeader),
+      hint: process.env.WHATSAPP_APP_SECRET
+        ? "Vérifiez WHATSAPP_APP_SECRET dans .env"
+        : "WHATSAPP_APP_SECRET non défini (signature ignorée normalement)",
+    });
     return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
   }
 
   let body: WhatsappWebhookPayload;
   try {
     body = JSON.parse(rawBody) as WhatsappWebhookPayload;
-  } catch {
+  } catch (error) {
+    waError("JSON invalide", error);
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  waLog("Payload parsé", {
+    object: body.object,
+    entryCount: body.entry?.length ?? 0,
+    preview: rawBody.slice(0, 500),
+  });
+
+  if (body.object && body.object !== "whatsapp_business_account") {
+    waWarn("Object inattendu (ignoré)", { object: body.object });
+  }
+
+  let messageCount = 0;
+  let statusCount = 0;
+
   try {
     for (const entry of body.entry ?? []) {
+      waLog("Entry", { entryId: entry.id, changeCount: entry.changes?.length ?? 0 });
+
       for (const change of entry.changes ?? []) {
         const value = change.value;
-        if (!value) continue;
+        if (!value) {
+          waWarn("Change sans value", { field: change.field });
+          continue;
+        }
+
+        waLog("Change", {
+          field: change.field,
+          phoneNumberId: value.metadata?.phone_number_id,
+          messageCount: value.messages?.length ?? 0,
+          statusCount: value.statuses?.length ?? 0,
+        });
 
         for (const message of value.messages ?? []) {
+          messageCount += 1;
           await handleIncomingWhatsappMessage(message);
         }
 
         for (const status of value.statuses ?? []) {
-          console.log(
-            `WhatsApp statut ${status.id}: ${status.status} → ${status.recipient_id}`,
-          );
+          statusCount += 1;
+          waLog("Statut livraison", {
+            messageId: status.id,
+            status: status.status,
+            recipient: status.recipient_id,
+          });
         }
       }
     }
   } catch (error) {
-    console.error("Erreur traitement webhook WhatsApp:", error);
+    waError("Erreur traitement payload", error);
   }
 
+  waLog("POST terminé", { messageCount, statusCount });
   return NextResponse.json({ status: "ok" });
 }

@@ -143,6 +143,15 @@ export async function getTechnicianByPhone(
     where: { telephone: { not: "" } },
   });
 
+  console.log("[WhatsApp Webhook] Recherche technicien par téléphone", {
+    from: phone,
+    candidates: rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      telephone: row.telephone,
+    })),
+  });
+
   const match = rows.find((row) => phonesMatch(row.telephone, phone));
   return match ? mapTechnicienRow(match) : undefined;
 }
