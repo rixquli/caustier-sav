@@ -20,12 +20,10 @@ export async function middleware(request) {
     return NextResponse.next();
   }
 
-  const sessionRes = await fetch(
-    new URL("/api/me", request.url).toString(),
-    {
-      headers: { cookie: request.headers.get("cookie") || "" },
-    },
-  );
+  const sessionRes = await fetch(new URL("/api/me", request.url).toString(), {
+    headers: { cookie: request.headers.get("cookie") || "" },
+    cache: "no-store",
+  });
 
   const data = sessionRes.ok ? await sessionRes.json() : null;
   const user = data?.user;
@@ -41,8 +39,13 @@ export async function middleware(request) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  const mustChangePassword =
+    user.mustChangePassword === true ||
+    user.mustChangePassword === 1 ||
+    user.mustChangePassword === "1";
+
   if (
-    user.mustChangePassword &&
+    mustChangePassword &&
     user.role === "client" &&
     pathname !== "/compte/changer-mot-de-passe"
   ) {

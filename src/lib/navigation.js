@@ -20,7 +20,10 @@ export const adminNav = [
   {
     label: "Administration",
     icon: MdOutlineAdminPanelSettings,
-    children: [{ label: "Clients", icon: FiUsers, href: "/admin/clients" }],
+    children: [
+      { label: "Clients", icon: FiUsers, href: "/admin/clients" },
+      { label: "Techniciens", icon: FiUser, href: "/admin/techniciens" },
+    ],
   },
 ];
 

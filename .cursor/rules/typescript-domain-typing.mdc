@@ -1,0 +1,86 @@
+---
+description: Méthode de typage TS par domaine (Row/Display/API/forms/db) — reproduire sur chaque entité
+globs: src/**/*.{ts,tsx,js,jsx}
+alwaysApply: true
+---
+
+# Typage TypeScript par domaine (méthode SAV)
+
+Référence : `src/types/technicien/` + `src/db/technicien.ts`.
+
+## 1. Structure des types (`src/types/<domaine>/`)
+
+Créer 4 fichiers par entité :
+
+| Fichier | Rôle |
+|---------|------|
+| `<domaine>.ts` | Types métier : Row DB, Display, Id, Input create/update |
+| `api.ts` | Requêtes/réponses API + `ApiErrorResponse` |
+| `forms.ts` | États de formulaires + props de composants |
+| `index.ts` | Réexport central (`@/types/<domaine>`) |
+
+## 2. Types métier — règles strictes
+
+- **Jamais `any`**. Préférer `unknown` + garde de type si nécessaire.
+- **`XxxRow`** : forme exacte SQLite (snake_case, `created_at`, etc.).
+- **`XxxDisplay`** : `Omit<Row, HiddenFields>` + champs camelCase UI (`createdAt`, alias legacy).
+- **`XxxId`** : `Row["id"] | string` (params de route Next.js).
+- **`CreateXxxInput`** : `Pick<Row, champsRequis>` + optionnels.
+- **`UpdateXxxInput`** : `Partial<Pick<Row, ...>>` + alias API/UI (`phone` / `phone_number`).
+- Type alias local pour champs exclus : `type XxxHiddenFields = "created_at" | ...`.
+
+```typescript
+export type TechnicienDisplay = Omit<TechnicienRow, HiddenFields | "telephone"> & {
+  phone_number: string;
+  createdAt: string;
+  displayName: string;
+};
+```
+
+## 3. Couche DB (`src/db/<domaine>.ts`)
+
+- Extraire les fonctions du gros `db.js` vers un module TS dédié.
+- Importer `getDb` depuis `./db.js` (pas de duplication de connexion).
+- Réexporter depuis `db.js` : `export { ... } from "./<domaine>"`.
+- **`formatXxxDisplay(row)`** : mapper Row → Display (ne pas réutiliser `formatUserDisplay`).
+- Retours explicites : `XxxRow | null` (pas `undefined` en sortie publique).
+- Corriger les bugs découverts (noms de colonnes SQL, fonctions manquantes).
+
+## 4. Routes API (`src/app/api/<domaine>/route.ts`)
+
+- Convertir `.js` → `.ts`, supprimer l'ancien fichier.
+- Typer le contexte : `{ params: Promise<{ id: string }> }`.
+- Typer le retour : `NextResponse<SuccessResponse | ApiErrorResponse>`.
+- Caster le body : `(await request.json()) as CreateXxxRequest`.
+- Utiliser `formatXxxDisplay` pour les réponses, pas le Row brut.
+
+## 5. Composants (`src/components/*.tsx`)
+
+- Convertir `.jsx` → `.tsx`.
+- Props depuis `forms.ts` : `XxxModalProps`.
+- État formulaire typé : `useState<XxxFormState>(EMPTY_FORM)`.
+- Setter typé : `setField<K extends keyof Form>(key: K, value: Form[K])`.
+- Après `fetch` : union `Success | ApiErrorResponse`, puis cast après `res.ok`.
+
+```typescript
+const data = (await res.json()) as Success | ApiErrorResponse;
+if (!res.ok) { setError("error" in data ? data.error : "…"); return; }
+const success = data as Success;
+onCreated?.(success.item);
+```
+
+## 6. Checklist de migration
+
+1. Lire le schéma SQLite + usages existants (API, modales, pages).
+2. Créer `src/types/<domaine>/` (4 fichiers).
+3. Créer `src/db/<domaine>.ts` + réexport dans `db.js`.
+4. Migrer routes API → `.ts`.
+5. Migrer composants/pages → `.tsx`.
+6. Supprimer les anciens `.js`/`.jsx`.
+7. Valider : `pnpm exec tsc --noEmit`.
+
+## 7. Nommage projet
+
+- Dossiers/types : français (`technicien`, `demande`).
+- Utilitaires TS : anglais (`Row`, `Display`, `Input`, `Omit`, `Pick`, `Partial`).
+- Un domaine = un dossier types + un module db, pas de types éparpillés.

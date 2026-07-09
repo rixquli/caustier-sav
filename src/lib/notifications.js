@@ -14,9 +14,21 @@ export function getNotificationHref(notification, isAdmin) {
     : `/demandes/${notification.demande_id}`;
 }
 
+export function parseDbDateTime(dateStr) {
+  if (!dateStr) return null;
+  if (dateStr.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+    return new Date(dateStr);
+  }
+  const iso = dateStr.includes("T")
+    ? dateStr
+    : `${dateStr.trim().replace(" ", "T")}Z`;
+  return new Date(iso);
+}
+
 export function formatNotificationTime(dateStr) {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
+  const date = parseDbDateTime(dateStr);
+  if (!date || Number.isNaN(date.getTime())) return "";
+
   const now = new Date();
   const diffMs = now - date;
   const diffMin = Math.floor(diffMs / 60000);

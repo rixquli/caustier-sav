@@ -1,6 +1,6 @@
 import path from "path";
 import Database from "better-sqlite3";
-import { buildStatusChangeMessage } from "@/lib/notifications";
+import { getDemandeById, logActivity, updateDemande } from "./demande";
 
 const dbPath = path.join(process.cwd(), "profile.db");
 
@@ -79,6 +79,14 @@ function initSchema(database) {
     updated_at TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS technicien_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    technicien_id TEXT NOT NULL,
+    contenu TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS demande_activity (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     demande_id INTEGER NOT NULL,
@@ -120,6 +128,17 @@ function initSchema(database) {
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (demande_id) REFERENCES demandes(id) ON DELETE CASCADE
   );
+
+   CREATE TABLE IF NOT EXISTS techniciens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        specialite TEXT NOT NULL,
+        telephone TEXT NOT NULL,
+        email TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now')),
+        notes_technicien TEXT
+    );  
 `);
 
   migrateLegacyData(database);
@@ -240,7 +259,12 @@ export function createNotification({ userId, type, demandeId, message }) {
     .get(result.lastInsertRowid);
 }
 
-export function notifyAdmins({ type, demandeId, message, excludeUserId = null }) {
+export function notifyAdmins({
+  type,
+  demandeId,
+  message,
+  excludeUserId = null,
+}) {
   const admins = listAdmins();
   for (const admin of admins) {
     if (excludeUserId && admin.id === excludeUserId) continue;
@@ -316,6 +340,10 @@ export function updateAppUser(id, fields) {
   return findAppUserById(id);
 }
 
+function toDbFlag(value) {
+  return value === true || value === 1 || value === "1";
+}
+
 export function formatUserDisplay(user) {
   if (!user) return null;
   const nom = user.nom || user.name?.split(" ").slice(1).join(" ") || "";
@@ -324,6 +352,8 @@ export function formatUserDisplay(user) {
     ...user,
     nom,
     prenom,
+    archived: toDbFlag(user.archived),
+    mustChangePassword: toDbFlag(user.mustChangePassword),
     displayName:
       [prenom, nom].filter(Boolean).join(" ") || user.name || user.email,
   };
@@ -389,75 +419,6 @@ export function deleteMachine(id) {
   return db.prepare("DELETE FROM machines WHERE id = ?").run(id);
 }
 
-export function touchDemandeActivity(demandeId) {
-  db.prepare(
-    "UPDATE demandes SET last_activity_at = datetime('now') WHERE id = ?",
-  ).run(demandeId);
-}
-
-export function logActivity({
-  demandeId,
-  userId,
-  action,
-  details = null,
-  isPublic = true,
-}) {
-  db.prepare(
-    `INSERT INTO demande_activity (demande_id, user_id, action, details, is_public)
-     VALUES (?, ?, ?, ?, ?)`,
-  ).run(
-    demandeId,
-    userId ?? null,
-    action,
-    details ? JSON.stringify(details) : null,
-    isPublic ? 1 : 0,
-  );
-  touchDemandeActivity(demandeId);
-}
-
-export function listActivityForDemande(demandeId, publicOnly = false) {
-  const sql = publicOnly
-    ? `SELECT a.*, u.nom AS user_nom, u.prenom AS user_prenom, u.name AS user_name, u.role AS user_role
-       FROM demande_activity a
-       LEFT JOIN user u ON u.id = a.user_id
-       WHERE a.demande_id = ? AND a.is_public = 1
-       ORDER BY a.created_at ASC`
-    : `SELECT a.*, u.nom AS user_nom, u.prenom AS user_prenom, u.name AS user_name, u.role AS user_role
-       FROM demande_activity a
-       LEFT JOIN user u ON u.id = a.user_id
-       WHERE a.demande_id = ?
-       ORDER BY a.created_at ASC`;
-
-  return db.prepare(sql).all(demandeId);
-}
-
-const DEMANDE_SELECT = `
-  SELECT d.*,
-         u.nom AS client_nom, u.prenom AS client_prenom, u.name AS client_name,
-         u.email AS client_email, u.phone AS client_phone, u.adresse AS client_adresse,
-         u.notes_admin AS client_notes_admin,
-         a.nom AS assignee_nom, a.prenom AS assignee_prenom, a.name AS assignee_name,
-         m.nom AS machine_nom
-  FROM demandes d
-  JOIN user u ON u.id = d.user_id
-  LEFT JOIN user a ON a.id = d.assigned_to
-  LEFT JOIN machines m ON m.id = d.machine_id
-`;
-
-export function getDemandeById(id) {
-  return db.prepare(`${DEMANDE_SELECT} WHERE d.id = ?`).get(id);
-}
-
-export function listDemandesForUser(userId) {
-  return db
-    .prepare(`${DEMANDE_SELECT} WHERE d.user_id = ? ORDER BY d.created_at DESC`)
-    .all(userId);
-}
-
-export function listAllDemandes() {
-  return db.prepare(`${DEMANDE_SELECT} ORDER BY d.created_at DESC`).all();
-}
-
 export const AI_ASSISTANT_EMAIL = "assistant-ia@internal.caustier";
 
 export function getAiAssistantUserId() {
@@ -465,179 +426,6 @@ export function getAiAssistantUserId() {
     .prepare("SELECT id FROM user WHERE email = ?")
     .get(AI_ASSISTANT_EMAIL);
   return user?.id ?? null;
-}
-
-export function createDemande({
-  userId,
-  machineId,
-  titre,
-  description,
-  type,
-  priorite,
-  assignedTo,
-  actorId,
-}) {
-  const result = db
-    .prepare(
-      `INSERT INTO demandes (user_id, machine_id, titre, description, type, priorite, assigned_to)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(
-      userId,
-      machineId ?? null,
-      titre,
-      description,
-      type,
-      priorite,
-      assignedTo ?? null,
-    );
-
-  const demande = getDemandeById(result.lastInsertRowid);
-  logActivity({
-    demandeId: demande.id,
-    userId: actorId,
-    action: "creation",
-    details: { titre, type, priorite },
-    isPublic: true,
-  });
-
-  notifyAdmins({
-    type: "nouvelle_demande",
-    demandeId: demande.id,
-    message: `Nouvelle demande #${demande.id} : ${titre}`,
-    excludeUserId: actorId,
-  });
-
-  queueAiAnalysis(demande);
-
-  return demande;
-}
-
-function queueAiAnalysis(demande) {
-  import("@/lib/ai-assistant")
-    .then(({ analyzeDemandeForKnownSolution }) =>
-      analyzeDemandeForKnownSolution(demande),
-    )
-    .catch((error) => {
-      console.error("Analyse IA après création de demande:", error);
-    });
-}
-
-export function updateDemande(id, fields, actorId, { skipNotifications = false } = {}) {
-  const existing = getDemandeById(id);
-  if (!existing) return null;
-
-  const updates = {};
-  const trackFields = [
-    "titre",
-    "description",
-    "type",
-    "priorite",
-    "status",
-    "assigned_to",
-    "machine_id",
-    "user_id",
-  ];
-
-  for (const key of trackFields) {
-    if (fields[key] !== undefined && fields[key] !== existing[key]) {
-      updates[key] = fields[key];
-    }
-  }
-
-  // notes_admin saved silently (no activity log)
-  if (fields.notes_admin !== undefined) {
-    db.prepare("UPDATE demandes SET notes_admin = ? WHERE id = ?").run(
-      fields.notes_admin?.trim() || null,
-      id,
-    );
-  }
-
-  if (fields.status !== undefined) {
-    if (fields.status === "resolue" && existing.status !== "resolue") {
-      db.prepare(
-        "UPDATE demandes SET resolved_at = datetime('now') WHERE id = ?",
-      ).run(id);
-    }
-    if (fields.status === "fermee" && existing.status !== "fermee") {
-      db.prepare(
-        "UPDATE demandes SET closed_at = datetime('now') WHERE id = ?",
-      ).run(id);
-    }
-  }
-
-  if (Object.keys(updates).length > 0) {
-    const sets = Object.keys(updates).map((k) => `${k} = ?`);
-    const values = Object.values(updates);
-    sets.push("last_activity_at = datetime('now')");
-    values.push(id);
-    db.prepare(`UPDATE demandes SET ${sets.join(", ")} WHERE id = ?`).run(
-      ...values,
-    );
-
-    if (updates.status) {
-      logActivity({
-        demandeId: id,
-        userId: actorId,
-        action: "status_change",
-        details: { from: existing.status, to: updates.status },
-        isPublic: true,
-      });
-
-      if (!skipNotifications) {
-        createNotification({
-          userId: existing.user_id,
-          type: "statut_change",
-          demandeId: id,
-          message: `Demande #${id} · ${buildStatusChangeMessage(existing.status, updates.status)}`,
-        });
-      }
-    } else {
-      logActivity({
-        demandeId: id,
-        userId: actorId,
-        action: "field_update",
-        details: updates,
-        isPublic: true,
-      });
-    }
-  }
-
-  if (fields.read_by_client !== undefined) {
-    db.prepare("UPDATE demandes SET read_by_client = ? WHERE id = ?").run(
-      fields.read_by_client ? 1 : 0,
-      id,
-    );
-  }
-
-  if (fields.read_by_admin !== undefined) {
-    db.prepare("UPDATE demandes SET read_by_admin = ? WHERE id = ?").run(
-      fields.read_by_admin ? 1 : 0,
-      id,
-    );
-  }
-
-  return getDemandeById(id);
-}
-
-export function deleteDemande(id) {
-  const existing = getDemandeById(id);
-  if (!existing) return null;
-  db.prepare("DELETE FROM demandes WHERE id = ?").run(id);
-  return existing;
-}
-
-export function getRecentDemandes(limit = 10, userId = null) {
-  if (userId) {
-    return db
-      .prepare(
-        `${DEMANDE_SELECT} WHERE d.user_id = ? ORDER BY d.created_at DESC LIMIT ?`,
-      )
-      .all(userId, limit);
-  }
-  return db
-    .prepare(`${DEMANDE_SELECT} ORDER BY d.created_at DESC LIMIT ?`)
-    .all(limit);
 }
 
 export function addMessage({ demandeId, userId, contenu }) {
@@ -660,12 +448,9 @@ export function addMessage({ demandeId, userId, contenu }) {
 
   if (user?.role === "admin") {
     if (demande?.status === "nouvelle") {
-      updateDemande(
-        demandeId,
-        { status: "en_cours" },
-        userId,
-        { skipNotifications: true },
-      );
+      updateDemande(demandeId, { status: "en_cours" }, userId, {
+        skipNotifications: true,
+      });
     }
     db.prepare("UPDATE demandes SET read_by_client = 0 WHERE id = ?").run(
       demandeId,
@@ -912,3 +697,30 @@ export function seedFaqIfEmpty() {
     insert.run(question, reponse, categorie);
   }
 }
+
+export {
+  createDemande,
+  deleteDemande,
+  formatDemandeDisplay,
+  getDemandeById,
+  getRecentDemandes,
+  listActivityForDemande,
+  listAllDemandes,
+  listDemandesForTechnician,
+  listDemandesForUser,
+  logActivity,
+  touchDemandeActivity,
+  updateDemande,
+} from "./demande";
+
+export {
+  createTechnician,
+  createTechnicianNote,
+  deleteTechnician,
+  formatTechnicienDisplay,
+  getTechnicianById,
+  getTechnicianBySpecialite,
+  listTechnicianNotes,
+  listTechnicians,
+  updateTechnician,
+} from "./technicien";

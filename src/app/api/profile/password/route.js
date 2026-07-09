@@ -3,6 +3,8 @@ import { updateAppUser } from "@/db/db";
 import { getSessionUser, requireUser } from "@/lib/session";
 import { setUserPassword } from "@/lib/password-utils";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   const user = await getSessionUser();
   const authError = requireUser(user);
@@ -32,7 +34,8 @@ export async function POST(request) {
     updateAppUser(user.id, { mustChangePassword: 0 });
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error("Password change error:", err);
     return NextResponse.json({ error: "Une erreur est survenue." }, { status: 500 });
   }
 }

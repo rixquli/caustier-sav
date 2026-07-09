@@ -4,18 +4,27 @@ import { db } from "@/db/db";
 
 export async function setUserPassword(userId, plainPassword) {
   const hashed = await hashPassword(plainPassword);
-  const result = db.prepare(
-    "UPDATE account SET password = ? WHERE userId = ? AND providerId = 'credential'",
-  ).run(hashed, userId);
+  const now = new Date().toISOString();
+  const existing = db
+    .prepare(
+      "SELECT id FROM account WHERE userId = ? AND providerId = 'credential' LIMIT 1",
+    )
+    .get(userId);
 
-  if (result.changes > 0) return;
+  if (existing) {
+    db.prepare("UPDATE account SET password = ?, updatedAt = ? WHERE id = ?").run(
+      hashed,
+      now,
+      existing.id,
+    );
+    return;
+  }
 
   const columns = db.prepare("PRAGMA table_info(account)").all();
   if (columns.length === 0) {
     throw new Error("Better Auth account table is missing.");
   }
 
-  const now = new Date().toISOString();
   const account = {
     id: randomUUID(),
     accountId: userId,

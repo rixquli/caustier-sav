@@ -67,6 +67,7 @@ export default function AdminDemandeDetailPage({ params }) {
   const [activity, setActivity] = useState([]);
   const [clients, setClients] = useState([]);
   const [admins, setAdmins] = useState([]);
+  const [technicians, setTechnicians] = useState([]);
   const [contenu, setContenu] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -97,12 +98,15 @@ export default function AdminDemandeDetailPage({ params }) {
       return;
     }
     const data = await demRes.json();
-    const meta = metaRes.ok ? await metaRes.json() : { clients: [], admins: [] };
+    const meta = metaRes.ok
+      ? await metaRes.json()
+      : { clients: [], admins: [], technicians: [] };
     setDemande(data.demande);
     setMessages(data.messages ?? []);
     setActivity(data.activity ?? []);
     setClients(meta.clients ?? []);
     setAdmins(meta.admins ?? []);
+    setTechnicians(meta.technicians ?? []);
   }
 
   useEffect(() => {
@@ -244,13 +248,19 @@ export default function AdminDemandeDetailPage({ params }) {
               <div>
                 <h1>{demande.titre}</h1>
                 <div className="detail-badges">
-                  <span className={`badge badge-type ${getTypeBadge(demande.type)}`}>
+                  <span
+                    className={`badge badge-type ${getTypeBadge(demande.type)}`}
+                  >
                     {getTypeLabel(demande.type)}
                   </span>
-                  <span className={`badge badge-prio ${getPrioriteBadge(demande.priorite)}`}>
+                  <span
+                    className={`badge badge-prio ${getPrioriteBadge(demande.priorite)}`}
+                  >
                     {getPrioriteLabel(demande.priorite)}
                   </span>
-                  <span className={`badge ${statut.badge}`}>{statut.label}</span>
+                  <span className={`badge ${statut.badge}`}>
+                    {statut.label}
+                  </span>
                 </div>
                 {demande.description && (
                   <p className="detail-path">{demande.description}</p>
@@ -262,7 +272,7 @@ export default function AdminDemandeDetailPage({ params }) {
               </div>
               <div className="detail-actions">
                 <div className="demande-quick-actions detail-demande-quick-actions">
-                  {canTakeCharge && (
+                  {/* {canTakeCharge && (
                     <button
                       type="button"
                       className="demande-quick-action-btn demande-quick-action-btn--primary"
@@ -271,7 +281,7 @@ export default function AdminDemandeDetailPage({ params }) {
                       <FiUserCheck aria-hidden="true" />
                       <span>Prendre en charge</span>
                     </button>
-                  )}
+                  )} */}
                   {!isResolvedOrClosed && (
                     <button
                       type="button"
@@ -302,7 +312,7 @@ export default function AdminDemandeDetailPage({ params }) {
             </div>
           </section>
 
-          <section className="page-card customer-messages-card chat-panel">
+          {/* <section className="page-card customer-messages-card chat-panel">
             <h2>Messages</h2>
             <div className="chat-thread" ref={chatThreadRef}>
               {messages.length === 0 ? (
@@ -356,7 +366,7 @@ export default function AdminDemandeDetailPage({ params }) {
                 </button>
               </form>
             )}
-          </section>
+          </section> */}
 
           <section className="page-card">
             <h2>Suivi</h2>
@@ -408,12 +418,14 @@ export default function AdminDemandeDetailPage({ params }) {
             <div className="form-field">
               <select
                 value={demande.assigned_to || ""}
-                onChange={(e) => quickUpdate({ assignedTo: e.target.value || null })}
+                onChange={(e) =>
+                  quickUpdate({ assignedTo: e.target.value || null })
+                }
               >
                 <option value="">Non assignée</option>
-                {admins.map((a) => (
+                {technicians.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {[a.prenom, a.nom].filter(Boolean).join(" ") || a.name}
+                    {[a.name, a.specialite].filter(Boolean).join(" ") || a.name}
                   </option>
                 ))}
               </select>
@@ -422,7 +434,9 @@ export default function AdminDemandeDetailPage({ params }) {
 
           <section className="side-card">
             <h3>Client</h3>
-            <p style={{ fontWeight: 700, marginBottom: "0.6rem" }}>{clientName}</p>
+            <p style={{ fontWeight: 700, marginBottom: "0.6rem" }}>
+              {clientName}
+            </p>
             <div className="info-rows">
               <div className="info-row">
                 <span className="info-row-label">Email</span>
@@ -461,6 +475,7 @@ export default function AdminDemandeDetailPage({ params }) {
           demande={demande}
           clients={clients}
           admins={admins}
+          technicians={technicians}
           onClose={() => setEditing(false)}
           onUpdated={() => {
             setEditing(false);

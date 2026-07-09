@@ -1004,8 +1004,8 @@ select {
 }
 
 .sidebar-link-icon {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.4rem;
+  height: 1.4rem;
   flex-shrink: 0;
   opacity: 0.95;
 }
@@ -1025,6 +1025,13 @@ select {
   justify-content: space-between;
   gap: 1rem;
   margin-bottom: 1.75rem;
+}
+
+.dashboard-button-container {
+  gap: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .dashboard-header h1 {
@@ -2285,7 +2292,6 @@ select {
 
 .filters-row {
   display: flex;
-  align-items: flex-end;
   flex-wrap: wrap;
   gap: 1rem;
 }

@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import PageLayout from "@/components/PageLayout";
 import { useAuth } from "@/context/AuthContext";
 
 export default function ChangerMotDePassePage() {
-  const router = useRouter();
   const { user, refreshUser } = useAuth();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -33,6 +31,7 @@ export default function ChangerMotDePassePage() {
       const res = await fetch("/api/profile/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ password, confirm }),
       });
       const data = await res.json();
@@ -43,8 +42,7 @@ export default function ChangerMotDePassePage() {
       }
 
       await refreshUser();
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch {
       setError("Impossible de contacter le serveur.");
     } finally {
