@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { phonesMatch } from "@/lib/whatsapp/phone";
 import { toIsoString } from "./helpers";
 import type {
   CreateTechnicienInput,
@@ -133,6 +134,17 @@ export async function getTechnicianBySpecialite(
     where: { specialite },
   });
   return row ? mapTechnicienRow(row) : undefined;
+}
+
+export async function getTechnicianByPhone(
+  phone: string,
+): Promise<TechnicienRow | undefined> {
+  const rows = await prisma.technicien.findMany({
+    where: { telephone: { not: "" } },
+  });
+
+  const match = rows.find((row) => phonesMatch(row.telephone, phone));
+  return match ? mapTechnicienRow(match) : undefined;
 }
 
 export async function listTechnicianNotes(

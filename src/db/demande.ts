@@ -427,6 +427,38 @@ export async function getRecentDemandes(
   return rows.map(mapDemandeRowJoined);
 }
 
+export async function findAwaitingTechnicianResponse(
+  technicianId: TechnicienId,
+): Promise<DemandeRowJoined | undefined> {
+  const techId = parseOptionalInt(technicianId);
+  if (techId == null) return undefined;
+
+  const assigned = await prisma.demande.findFirst({
+    where: { assignedTo: techId, status: "nouvelle" },
+    include: demandeInclude,
+    orderBy: { created_at: "desc" },
+  });
+  if (assigned) return mapDemandeRowJoined(assigned);
+
+  const technician = await prisma.technicien.findUnique({
+    where: { id: techId },
+    select: { specialite: true },
+  });
+  if (!technician?.specialite) return undefined;
+
+  const bySpecialite = await prisma.demande.findFirst({
+    where: {
+      assignedTo: null,
+      status: "nouvelle",
+      type: technician.specialite,
+    },
+    include: demandeInclude,
+    orderBy: { created_at: "desc" },
+  });
+
+  return bySpecialite ? mapDemandeRowJoined(bySpecialite) : undefined;
+}
+
 export async function listDemandesForTechnician(
   technicianId: TechnicienId,
 ): Promise<DemandeDisplay[]> {

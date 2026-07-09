@@ -11,7 +11,7 @@ import {
   logActivity,
 } from "@/db/db";
 import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
-import { sendMessage } from "@/lib/whatsapp/test";
+import { sendMessage } from "@/lib/whatsapp/send";
 import type {
   ApiErrorResponse,
   CreateDemandeRequest,

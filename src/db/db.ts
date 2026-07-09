@@ -630,6 +630,7 @@ export {
 export {
   createDemande,
   deleteDemande,
+  findAwaitingTechnicianResponse,
   formatDemandeDisplay,
   getDemandeById,
   getRecentDemandes,
@@ -648,6 +649,7 @@ export {
   deleteTechnician,
   formatTechnicienDisplay,
   getTechnicianById,
+  getTechnicianByPhone,
   getTechnicianBySpecialite,
   listTechnicianNotes,
   listTechnicians,
