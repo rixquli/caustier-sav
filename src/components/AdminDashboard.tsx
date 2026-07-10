@@ -13,6 +13,7 @@ import {
 } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 import type {
+  DemandeAdminOption,
   DemandeClientOption,
   DemandeDisplay,
   DemandeMetaResponse,
