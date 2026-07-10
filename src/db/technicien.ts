@@ -130,8 +130,23 @@ export async function getTechnicianById(
 export async function getTechnicianBySpecialite(
   specialite: string,
 ): Promise<TechnicienRow | undefined> {
+  return getNextTechnicianBySpecialite(specialite);
+}
+
+export async function getNextTechnicianBySpecialite(
+  specialite: string,
+  excludeIds: TechnicienId[] = [],
+): Promise<TechnicienRow | undefined> {
+  const excludeNumeric = excludeIds
+    .map((id) => parseTechnicienId(id))
+    .filter((id) => !Number.isNaN(id));
+
   const row = await prisma.technicien.findFirst({
-    where: { specialite },
+    where: {
+      specialite,
+      ...(excludeNumeric.length > 0 ? { id: { notIn: excludeNumeric } } : {}),
+    },
+    orderBy: { created_at: "asc" },
   });
   return row ? mapTechnicienRow(row) : undefined;
 }

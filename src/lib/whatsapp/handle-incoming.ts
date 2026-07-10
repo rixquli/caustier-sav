@@ -1,17 +1,21 @@
 import {
   findAwaitingTechnicianResponse,
+  getNextTechnicianBySpecialite,
+  getRefusedTechnicianIdsForDemande,
   getTechnicianByPhone,
   logActivity,
+  notifyAdmins,
   updateDemande,
 } from "@/db/db";
 import { createNotification } from "@/db/notifications";
 import type { WhatsappIncomingMessage } from "@/types/whatsapp";
-import { waLog, waWarn } from "./logger";
+import { waError, waLog, waWarn } from "./logger";
 import { normalizeWhatsappPhone } from "./phone";
 import {
   classifyTechnicianReply,
   extractMessageText,
 } from "./reply";
+import { sendMessage } from "./send";
 
 export async function handleIncomingWhatsappMessage(
   message: WhatsappIncomingMessage,
@@ -138,5 +142,104 @@ export async function handleIncomingWhatsappMessage(
     isPublic: true,
   });
 
-  waLog("Refus enregistré", { demandeId: demande.id });
+  const refusedIds = await getRefusedTechnicianIdsForDemande(demande.id);
+  const nextTechnician = await getNextTechnicianBySpecialite(
+    demande.type,
+    refusedIds,
+  );
+
+  if (!nextTechnician) {
+    await updateDemande(
+      demande.id,
+      { assignedTo: null },
+      null,
+      { skipNotifications: true },
+    );
+
+    await logActivity({
+      demandeId: demande.id,
+      userId: null,
+      action: "whatsapp_no_technician_available",
+      details: {
+        refusedTechnicianIds: refusedIds,
+        type: demande.type,
+      },
+      isPublic: true,
+    });
+
+    await notifyAdmins({
+      type: "whatsapp_no_technician",
+      demandeId: demande.id,
+      message: `Demande #${demande.id} · aucun technicien disponible (${demande.type}) après refus.`,
+    });
+
+    waWarn("Aucun autre technicien disponible", {
+      demandeId: demande.id,
+      refusedIds,
+      type: demande.type,
+    });
+    return;
+  }
+
+  await updateDemande(
+    demande.id,
+    { assignedTo: String(nextTechnician.id) },
+    null,
+    { skipNotifications: true },
+  );
+
+  const clientName =
+    demande.client_name?.trim() ||
+    [demande.client_prenom, demande.client_nom].filter(Boolean).join(" ") ||
+    "Client";
+
+  try {
+    await sendMessage({
+      technicianNumber: nextTechnician.telephone,
+      technicianName: nextTechnician.name,
+      clientName,
+      description: demande.description,
+      type: demande.type,
+      priority: demande.priorite,
+    });
+
+    await logActivity({
+      demandeId: demande.id,
+      userId: null,
+      action: "whatsapp_message_sent",
+      details: {
+        technicianId: nextTechnician.id,
+        technicianName: nextTechnician.name,
+        technicianNumber: nextTechnician.telephone,
+        clientName,
+        description: demande.description,
+        type: demande.type,
+        priority: demande.priorite,
+        reassignedAfterRefusal: true,
+        previousTechnicianId: technician.id,
+      },
+      isPublic: true,
+    });
+
+    waLog("Réassignation OK", {
+      demandeId: demande.id,
+      previousTechnicianId: technician.id,
+      nextTechnicianId: nextTechnician.id,
+      nextTechnicianName: nextTechnician.name,
+    });
+  } catch (error) {
+    waError("Échec envoi WhatsApp au technicien suivant", error);
+    await logActivity({
+      demandeId: demande.id,
+      userId: null,
+      action: "whatsapp_message_failed",
+      details: {
+        technicianId: nextTechnician.id,
+        technicianName: nextTechnician.name,
+        previousTechnicianId: technician.id,
+        error: error instanceof Error ? error.message : "Erreur inconnue",
+      },
+      isPublic: true,
+    });
+  }
 }

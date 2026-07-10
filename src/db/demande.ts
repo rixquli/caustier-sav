@@ -145,6 +145,32 @@ export async function logActivity({
   await touchDemandeActivity(demandeId);
 }
 
+export async function getRefusedTechnicianIdsForDemande(
+  demandeId: number,
+): Promise<number[]> {
+  const activities = await prisma.demandeActivity.findMany({
+    where: { demandeId, action: "whatsapp_technician_refused" },
+    select: { details: true },
+  });
+
+  const ids = new Set<number>();
+  for (const activity of activities) {
+    if (!activity.details) continue;
+    try {
+      const details = JSON.parse(activity.details) as {
+        technicianId?: number;
+      };
+      if (details.technicianId != null) {
+        ids.add(details.technicianId);
+      }
+    } catch {
+      // ignore malformed activity payloads
+    }
+  }
+
+  return [...ids];
+}
+
 export async function listActivityForDemande(
   demandeId: number,
   publicOnly = false,
