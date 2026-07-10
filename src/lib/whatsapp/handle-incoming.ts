@@ -1,5 +1,6 @@
 import {
   findAwaitingTechnicianResponse,
+  getDemandeById,
   getNextTechnicianBySpecialite,
   getRefusedTechnicianIdsForDemande,
   getTechnicianByPhone,
@@ -15,7 +16,7 @@ import {
   classifyTechnicianReply,
   extractMessageText,
 } from "./reply";
-import { sendMessage } from "./send";
+import { sendMessage, sendTextMessage } from "./send";
 
 export async function handleIncomingWhatsappMessage(
   message: WhatsappIncomingMessage,
@@ -117,6 +118,38 @@ export async function handleIncomingWhatsappMessage(
       demandeId: demande.id,
       message: `Demande #${demande.id} · ${technician.name} a accepté votre demande.`,
     });
+
+    const updated = await getDemandeById(demande.id);
+    waLog("Vérification post-acceptation", {
+      demandeId: demande.id,
+      status: updated?.status,
+      assignedTo: updated?.assigned_to,
+    });
+
+    if (updated?.status !== "en_cours") {
+      waError("Échec persistance acceptation — statut inattendu en base", {
+        demandeId: demande.id,
+        expectedStatus: "en_cours",
+        actualStatus: updated?.status ?? null,
+        assignedTo: updated?.assigned_to ?? null,
+      });
+    }
+
+    const clientName =
+      demande.client_name?.trim() ||
+      [demande.client_prenom, demande.client_nom].filter(Boolean).join(" ") ||
+      "le client";
+    const clientPhone = demande.client_phone?.trim();
+
+    try {
+      const confirmationBody = clientPhone
+        ? `Demande #${demande.id} acceptée. Vous pouvez contacter ${clientName} au ${clientPhone}.`
+        : `Demande #${demande.id} acceptée. Vous pouvez contacter ${clientName}.`;
+
+      await sendTextMessage(technician.telephone, confirmationBody);
+    } catch (error) {
+      waError("Échec envoi confirmation WhatsApp au technicien", error);
+    }
 
     waLog("Acceptation OK", {
       demandeId: demande.id,

@@ -9,6 +9,8 @@ import { ACTIVE_STATUSES, CLOSED_STATUSES } from "@/lib/constants";
 import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
 import type { DemandeDisplay } from "@/types/demande";
 
+export const dynamic = "force-dynamic";
+
 const PRIORITY_RANK: Record<string, number> = {
   critique: 0,
   haute: 1,

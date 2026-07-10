@@ -17,6 +17,8 @@ import type {
   UpdateDemandeResponse,
 } from "@/types/demande";
 
+export const dynamic = "force-dynamic";
+
 type RouteContext = {
   params: Promise<{ id: string }>;
 };

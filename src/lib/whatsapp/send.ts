@@ -68,3 +68,40 @@ export async function sendMessage({
     throw new Error(data.error?.message ?? "Échec envoi WhatsApp");
   }
 }
+
+export async function sendTextMessage(
+  toNumber: string,
+  body: string,
+): Promise<void> {
+  if (!toNumber?.trim() || !body?.trim()) {
+    throw new Error("Missing required fields");
+  }
+
+  if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
+    throw new Error("WHATSAPP_API_KEY ou PHONE_NUMBER_ID manquant");
+  }
+
+  const to = normalizeWhatsappPhone(toNumber);
+
+  const response = await fetch(
+    `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body },
+      }),
+    },
+  );
+
+  const data = (await response.json()) as { error?: { message?: string } };
+  if (!response.ok) {
+    throw new Error(data.error?.message ?? "Échec envoi WhatsApp");
+  }
+}

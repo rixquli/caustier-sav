@@ -205,6 +205,7 @@ export default function AdminDashboard({ user }: { user: UserDisplay }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DEMANDE_PRIORITES, DEMANDE_TYPES } from "@/lib/constants";
 import type {
@@ -10,6 +10,8 @@ import type {
   DemandeFormProps,
   DemandeMachineOption,
 } from "@/types/demande";
+import { createDemande } from "@/app/actions/demandes";
+import { useAction } from "next-safe-action/hooks";
 
 const EMPTY_FORM: DemandeCreateFormState = {
   userId: "",
@@ -34,7 +36,20 @@ export default function DemandeForm({
     [],
   );
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  // const [loading, setLoading] = useState(false);
+
+  const { executeAsync, isExecuting } = useAction(createDemande, {
+    onSuccess: ({ data }) => {
+      if (data?.demande) {
+        onSuccess
+          ? onSuccess(data.demande)
+          : router.push(`/demandes/${data.demande.id}`);
+      }
+    },
+    onError: ({ error }) => {
+      setError(error.serverError ?? "Erreur lors de la création.");
+    },
+  });
 
   const availableMachines = adminMode ? clientMachines : machines;
 
@@ -47,6 +62,7 @@ export default function DemandeForm({
 
   useEffect(() => {
     if (!adminMode) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setField("machineId", "");
     if (!form.userId) {
       setClientMachines([]);
@@ -66,7 +82,7 @@ export default function DemandeForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    // setLoading(true);
 
     try {
       const body: Record<string, unknown> = {
@@ -81,29 +97,17 @@ export default function DemandeForm({
         body.userId = form.userId;
         body.assignedTo = form.assignedTo || null;
       }
-
-      const res = await fetch("/api/demandes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      executeAsync({
+        titre: form.titre,
+        description: form.description,
+        type: form.type,
+        priorite: form.priorite,
+        machineId: form.machineId || null,
+        userId: adminMode ? form.userId : undefined,
+        assignedTo: adminMode ? form.assignedTo || null : undefined,
       });
-      const data = (await res.json()) as CreateDemandeResponse | ApiErrorResponse;
-
-      if (!res.ok) {
-        setError("error" in data ? data.error : "Erreur lors de la création.");
-        return;
-      }
-
-      const success = data as CreateDemandeResponse;
-      if (onSuccess) {
-        onSuccess(success.demande);
-      } else {
-        router.push(`/demandes/${success.demande.id}`);
-      }
     } catch {
       setError("Impossible de contacter le serveur.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -219,8 +223,8 @@ export default function DemandeForm({
         <p className="page-muted">Aucune machine enregistrée pour ce client.</p>
       ) : null}
 
-      <button type="submit" className="btn btn-primary" disabled={loading}>
-        {loading ? "Envoi…" : "Créer la demande"}
+      <button type="submit" className="btn btn-primary" disabled={isExecuting}>
+        {isExecuting ? "Envoi…" : "Créer la demande"}
       </button>
     </form>
   );

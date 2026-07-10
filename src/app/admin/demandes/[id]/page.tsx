@@ -49,13 +49,15 @@ function formatDateTime(dateStr: string | null | undefined): string {
 
 function formatActivity(entry: DemandeActivityRow): string {
   const details = entry.details
-    ? (JSON.parse(entry.details) as Record<string, string>)
+    ? (JSON.parse(entry.details) as Record<string, unknown>)
     : {};
+  const technicianName = String(details.technicianName ?? "Technicien");
+
   switch (entry.action) {
     case "creation":
       return "a créé la requête";
     case "status_change":
-      return `a changé le statut : ${getStatutInfo(details.from).label} → ${getStatutInfo(details.to).label}`;
+      return `a changé le statut : ${getStatutInfo(String(details.from)).label} → ${getStatutInfo(String(details.to)).label}`;
     case "message":
       return "a ajouté un message";
     case "field_update":
@@ -66,6 +68,16 @@ function formatActivity(entry: DemandeActivityRow): string {
       return "a modifié une note interne";
     case "note_deleted":
       return "a supprimé une note interne";
+    case "whatsapp_technician_accepted":
+      return `${technicianName} a accepté via WhatsApp`;
+    case "whatsapp_technician_refused":
+      return `${technicianName} a refusé via WhatsApp`;
+    case "whatsapp_message_sent":
+      return `Notification WhatsApp envoyée à ${technicianName}`;
+    case "whatsapp_message_failed":
+      return `Échec envoi WhatsApp à ${technicianName}`;
+    case "whatsapp_no_technician_available":
+      return "Aucun technicien disponible";
     default:
       return entry.action;
   }
@@ -291,7 +303,16 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
           </section>
 
           <section className="page-card">
-            <h2>Suivi</h2>
+            <div className="detail-topbar">
+              <h2>Suivi</h2>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => load()}
+              >
+                Actualiser
+              </button>
+            </div>
             {timeline.length === 0 ? (
               <p className="page-muted">Aucune activité pour le moment.</p>
             ) : (

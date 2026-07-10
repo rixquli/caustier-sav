@@ -95,6 +95,10 @@ export async function POST(
       targetUserId = client.id;
     }
 
+    const technician = assignedTo
+      ? await getTechnicianById(assignedTo)
+      : await getTechnicianBySpecialite(type);
+
     const row = await createDemande({
       userId: targetUserId,
       machineId: machineId ? Number(machineId) : null,
@@ -102,13 +106,9 @@ export async function POST(
       description: description.trim(),
       type,
       priorite,
-      assignedTo: assignedTo || null,
+      assignedTo: assignedTo ?? (technician ? String(technician.id) : null),
       actorId: user.id,
     });
-
-    const technician = assignedTo
-      ? await getTechnicianById(assignedTo)
-      : await getTechnicianBySpecialite(type);
 
     const client = userId ? await findAppUserById(userId) : null;
 

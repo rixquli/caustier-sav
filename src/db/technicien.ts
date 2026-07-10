@@ -158,17 +158,45 @@ export async function getTechnicianByPhone(
     where: { telephone: { not: "" } },
   });
 
+  const matching = rows.filter((row) => phonesMatch(row.telephone, phone));
+
   console.log("[WhatsApp Webhook] Recherche technicien par téléphone", {
     from: phone,
-    candidates: rows.map((row) => ({
+    candidates: matching.map((row) => ({
       id: row.id,
       name: row.name,
       telephone: row.telephone,
     })),
   });
 
-  const match = rows.find((row) => phonesMatch(row.telephone, phone));
-  return match ? mapTechnicienRow(match) : undefined;
+  if (matching.length === 0) return undefined;
+
+  for (const tech of matching) {
+    const assigned = await prisma.demande.findFirst({
+      where: { assignedTo: tech.id, status: "nouvelle" },
+      orderBy: { created_at: "desc" },
+    });
+    if (assigned) {
+      return mapTechnicienRow(tech);
+    }
+  }
+
+  for (const tech of matching) {
+    if (!tech.specialite) continue;
+    const bySpecialite = await prisma.demande.findFirst({
+      where: {
+        assignedTo: null,
+        status: "nouvelle",
+        type: tech.specialite,
+      },
+      orderBy: { created_at: "desc" },
+    });
+    if (bySpecialite) {
+      return mapTechnicienRow(tech);
+    }
+  }
+
+  return mapTechnicienRow(matching[0]);
 }
 
 export async function listTechnicianNotes(
