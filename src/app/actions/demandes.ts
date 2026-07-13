@@ -72,33 +72,49 @@ export const createDemande = authActionClient
 
     const client = userId ? await findAppUserById(userId) : null;
 
-    try {
-      sendMessage({
-        technicianNumber: technician?.telephone ?? "0672651376",
-        technicianName: technician?.name ?? "John Doe",
-        clientName: client?.name ?? "John Doe",
-        description: description ?? "Description de la demande",
-        type: type ?? "IA",
-        priority: priorite ?? "Normal",
-      }).then(() => {
-        void logActivity({
+    if (technician?.telephone) {
+      try {
+        await sendMessage({
+          demandeId: row.id,
+          technicianNumber: technician.telephone,
+          technicianName: technician.name,
+          clientName: client?.name ?? "Client",
+          description: description.trim(),
+          type,
+          priority: priorite,
+        });
+
+        await logActivity({
           demandeId: row.id,
           userId: null,
           action: "whatsapp_message_sent",
           details: {
-            technicianName: technician?.name ?? "John Doe",
-            technicianNumber: technician?.telephone ?? "0672651376",
-            clientName: client?.name ?? "John Doe",
-            description: description ?? "Description de la demande",
-            type: type ?? "IA",
-            priority: priorite ?? "Normal",
+            technicianId: technician.id,
+            technicianName: technician.name,
+            technicianNumber: technician.telephone,
+            clientName: client?.name ?? "Client",
+            description: description.trim(),
+            type,
+            priority: priorite,
+            initialNotification: true,
           },
           isPublic: true,
         });
-      });
-    } catch (error) {
-      console.error(error);
-      throw new Error("Erreur lors de l'envoi du message");
+      } catch (error) {
+        console.error(error);
+        await logActivity({
+          demandeId: row.id,
+          userId: null,
+          action: "whatsapp_message_failed",
+          details: {
+            technicianId: technician.id,
+            technicianName: technician.name,
+            error: error instanceof Error ? error.message : "Erreur inconnue",
+            initialNotification: true,
+          },
+          isPublic: true,
+        });
+      }
     }
 
     const demande = formatDemandeDisplay(await getDemandeById(row.id));

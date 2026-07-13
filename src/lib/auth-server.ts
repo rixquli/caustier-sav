@@ -2,6 +2,11 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "@/lib/prisma";
 import { seedFaqIfEmpty } from "@/db/db";
+import {
+  getAuthBaseUrl,
+  getAuthSecret,
+  shouldSeedDemoUsers,
+} from "@/lib/env";
 import { setUserPassword } from "@/lib/password-utils";
 import type { UserRole } from "@/types/user";
 
@@ -44,10 +49,8 @@ function createAuth() {
         },
       },
     },
-    secret:
-      process.env.BETTER_AUTH_SECRET ||
-      "caustier-sav-dev-secret-change-in-prod",
-    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    secret: getAuthSecret(),
+    baseURL: getAuthBaseUrl(),
   });
 }
 
@@ -85,40 +88,34 @@ export async function ensureAuthMigrations(): Promise<void> {
   }
 }
 
-type SeedUserFields = {
-  role: UserRole;
-  nom: string;
-  prenom: string;
-  mustChangePassword: number;
-  archived: number;
-};
-
 async function seedDefaultUsers(): Promise<void> {
-  await seedDefaultUser({
-    email: "admin@caustier.fr",
-    password: "admin123",
-    name: "Admin Caustier",
-    fields: {
-      role: "admin",
-      nom: "Caustier",
-      prenom: "Admin",
-      mustChangePassword: 0,
-      archived: 0,
-    },
-  });
+  if (shouldSeedDemoUsers()) {
+    await seedDefaultUser({
+      email: "admin@caustier.fr",
+      password: "admin123",
+      name: "Admin Caustier",
+      fields: {
+        role: "admin",
+        nom: "Caustier",
+        prenom: "Admin",
+        mustChangePassword: 0,
+        archived: 0,
+      },
+    });
 
-  await seedDefaultUser({
-    email: "client@caustier.fr",
-    password: "client123",
-    name: "Demo Client",
-    fields: {
-      role: "client",
-      nom: "Demo",
-      prenom: "Client",
-      mustChangePassword: 0,
-      archived: 0,
-    },
-  });
+    await seedDefaultUser({
+      email: "client@caustier.fr",
+      password: "client123",
+      name: "Demo Client",
+      fields: {
+        role: "client",
+        nom: "Demo",
+        prenom: "Client",
+        mustChangePassword: 0,
+        archived: 0,
+      },
+    });
+  }
 
   await seedDefaultUser({
     email: "assistant-ia@internal.caustier",
@@ -133,6 +130,14 @@ async function seedDefaultUsers(): Promise<void> {
     },
   });
 }
+
+type SeedUserFields = {
+  role: UserRole;
+  nom: string;
+  prenom: string;
+  mustChangePassword: number;
+  archived: number;
+};
 
 async function seedDefaultUser({
   email,

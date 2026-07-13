@@ -1,15 +1,17 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-
-const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
+import { isProduction } from "@/lib/env";
 
 export function verifyWhatsappSignature(
   rawBody: string,
   signatureHeader: string | null,
 ): boolean {
-  if (!APP_SECRET) return true;
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret) {
+    return !isProduction();
+  }
   if (!signatureHeader?.startsWith("sha256=")) return false;
 
-  const expected = createHmac("sha256", APP_SECRET)
+  const expected = createHmac("sha256", appSecret)
     .update(rawBody)
     .digest("hex");
   const received = signatureHeader.slice("sha256=".length);

@@ -1,10 +1,76 @@
 import type { SendWhatsappTemplateInput } from "@/types/whatsapp";
 import { normalizeWhatsappPhone } from "./phone";
+import { buildWhatsappReplyButtonId } from "./reply";
 
 const PHONE_NUMBER_ID = process.env.PHONE_NUMBER_ID;
 const ACCESS_TOKEN = process.env.WHATSAPP_API_KEY;
 
+async function postWhatsappMessage(body: Record<string, unknown>): Promise<void> {
+  if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
+    throw new Error("WHATSAPP_API_KEY ou PHONE_NUMBER_ID manquant");
+  }
+
+  const response = await fetch(
+    `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+  );
+
+  const data = (await response.json()) as { error?: { message?: string } };
+  if (!response.ok) {
+    throw new Error(data.error?.message ?? "Échec envoi WhatsApp");
+  }
+}
+
+export async function sendDemandeResponseButtons(
+  demandeId: number,
+  technicianNumber: string,
+): Promise<void> {
+  if (!technicianNumber?.trim()) {
+    throw new Error("Missing required fields");
+  }
+
+  const to = normalizeWhatsappPhone(technicianNumber);
+
+  await postWhatsappMessage({
+    messaging_product: "whatsapp",
+    to,
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: {
+        text: `Demande #${demandeId} — confirmez votre réponse pour cette demande uniquement :`,
+      },
+      action: {
+        buttons: [
+          {
+            type: "reply",
+            reply: {
+              id: buildWhatsappReplyButtonId("accept", demandeId),
+              title: "Accepter",
+            },
+          },
+          {
+            type: "reply",
+            reply: {
+              id: buildWhatsappReplyButtonId("refuse", demandeId),
+              title: "Refuser",
+            },
+          },
+        ],
+      },
+    },
+  });
+}
+
 export async function sendMessage({
+  demandeId,
   technicianNumber,
   technicianName,
   clientName,
@@ -13,6 +79,7 @@ export async function sendMessage({
   priority,
 }: SendWhatsappTemplateInput): Promise<void> {
   if (
+    !demandeId ||
     !technicianNumber ||
     !technicianName ||
     !clientName ||
@@ -23,49 +90,48 @@ export async function sendMessage({
     throw new Error("Missing required fields");
   }
 
-  if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
-    throw new Error("WHATSAPP_API_KEY ou PHONE_NUMBER_ID manquant");
-  }
-
   const to = normalizeWhatsappPhone(technicianNumber);
+  const labeledDescription = `Demande #${demandeId} — ${description}`;
 
-  const response = await fetch(
-    `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
+  await postWhatsappMessage({
+    messaging_product: "whatsapp",
+    to,
+    type: "template",
+    template: {
+      name: "notification_sav",
+      language: {
+        code: "fr",
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "template",
-        template: {
-          name: "notification_sav",
-          language: {
-            code: "fr",
-          },
-          components: [
-            {
-              type: "body",
-              parameters: [
-                { type: "text", text: technicianName },
-                { type: "text", text: clientName },
-                { type: "text", text: description },
-                { type: "text", text: type },
-                { type: "text", text: priority },
-              ],
-            },
+      components: [
+        {
+          type: "body",
+          parameters: [
+            { type: "text", text: technicianName },
+            { type: "text", text: clientName },
+            { type: "text", text: labeledDescription },
+            { type: "text", text: type },
+            { type: "text", text: priority },
           ],
         },
-      }),
+      ],
     },
-  );
+  });
 
-  const data = (await response.json()) as { error?: { message?: string } };
-  if (!response.ok) {
-    throw new Error(data.error?.message ?? "Échec envoi WhatsApp");
+  try {
+    await sendDemandeResponseButtons(demandeId, technicianNumber);
+  } catch (error) {
+    console.error(
+      `[WhatsApp] Boutons Accepter/Refuser non envoyés pour demande #${demandeId}`,
+      error,
+    );
+    await postWhatsappMessage({
+      messaging_product: "whatsapp",
+      to,
+      type: "text",
+      text: {
+        body: `Demande #${demandeId} — répondez « oui ${demandeId} » ou « non ${demandeId} » pour cette demande uniquement.`,
+      },
+    });
   }
 }
 
@@ -77,31 +143,12 @@ export async function sendTextMessage(
     throw new Error("Missing required fields");
   }
 
-  if (!PHONE_NUMBER_ID || !ACCESS_TOKEN) {
-    throw new Error("WHATSAPP_API_KEY ou PHONE_NUMBER_ID manquant");
-  }
-
   const to = normalizeWhatsappPhone(toNumber);
 
-  const response = await fetch(
-    `https://graph.facebook.com/v25.0/${PHONE_NUMBER_ID}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body },
-      }),
-    },
-  );
-
-  const data = (await response.json()) as { error?: { message?: string } };
-  if (!response.ok) {
-    throw new Error(data.error?.message ?? "Échec envoi WhatsApp");
-  }
+  await postWhatsappMessage({
+    messaging_product: "whatsapp",
+    to,
+    type: "text",
+    text: { body },
+  });
 }

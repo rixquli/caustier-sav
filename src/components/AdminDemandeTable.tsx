@@ -19,6 +19,7 @@ import type {
   UpdateDemandeResponse,
 } from "@/types/demande";
 import { EditDemandeModal } from "./EditDemandeModal";
+import { CloseDemandeModal } from "./CloseDemandeModal";
 
 function formatDate(dateStr: string | null | undefined) {
   if (!dateStr) return "—";
@@ -65,8 +66,7 @@ function DemandeQuickActions({
   onEdit,
   compact = false,
 }: DemandeQuickActionsProps) {
-  const isClosed =
-    demande.status === "fermee" || demande.status === "resolue";
+  const isClosed = demande.status === "fermee" || demande.status === "resolue";
 
   return (
     <div
@@ -127,6 +127,9 @@ export default function AdminDemandeTable({
     null,
   );
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [closedDemande, setClosedDemande] = useState<DemandeDisplay | null>(
+    null,
+  );
 
   async function patchDemande(
     demande: DemandeDisplay,
@@ -160,14 +163,15 @@ export default function AdminDemandeTable({
   }
 
   async function handleClose(demande: DemandeDisplay) {
-    if (
-      !window.confirm(
-        `Fermer la demande « ${demande.titre} » ? Le client ne pourra plus y répondre.`,
-      )
-    ) {
-      return;
-    }
+    // if (
+    //   !window.confirm(
+    //     `Fermer la demande « ${demande.titre} » ? Le client ne pourra plus y répondre.`,
+    //   )
+    // ) {
+    //   return;
+    // }
     await patchDemande(demande, { status: "fermee" });
+    setClosedDemande(demande);
   }
 
   async function handleDelete(demande: DemandeDisplay) {
@@ -205,7 +209,7 @@ export default function AdminDemandeTable({
   const actionProps = {
     currentUserId,
     onTakeCharge: handleTakeCharge,
-    onClose: handleClose,
+    onClose: (demande: DemandeDisplay) => setClosedDemande(demande),
     onDelete: handleDelete,
     onEdit: setEditingDemande,
   };
@@ -221,6 +225,15 @@ export default function AdminDemandeTable({
         onUpdated={(updated) => {
           onUpdated?.(updated);
           setEditingDemande(null);
+        }}
+      />
+
+      <CloseDemandeModal
+        demande={closedDemande}
+        onClose={() => setClosedDemande(null)}
+        onUpdated={(updated) => {
+          onUpdated?.(updated);
+          setClosedDemande(null);
         }}
       />
 

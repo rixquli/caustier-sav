@@ -7,9 +7,12 @@ import {
   getTechnicianById,
   getTechnicianBySpecialite,
   listAllDemandes,
+  listAllDemandesPaginated,
   listDemandesForUser,
+  listDemandesForUserPaginated,
   logActivity,
 } from "@/db/db";
+import { parsePaginationQuery } from "@/lib/pagination";
 import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
 import { sendMessage } from "@/lib/whatsapp/send";
 import type {
@@ -19,9 +22,9 @@ import type {
   ListDemandesResponse,
 } from "@/types/demande";
 
-export async function GET(): Promise<
-  NextResponse<ListDemandesResponse | ApiErrorResponse>
-> {
+export async function GET(
+  request: Request,
+): Promise<NextResponse<ListDemandesResponse | ApiErrorResponse>> {
   const sessionUser = await getSessionUser();
   const auth = guardUser(sessionUser);
   if (!auth.ok) {
@@ -31,6 +34,29 @@ export async function GET(): Promise<
     );
   }
   const user = auth.user;
+
+  const { searchParams } = new URL(request.url);
+  const pagination = parsePaginationQuery(
+    searchParams.get("page"),
+    searchParams.get("limit"),
+  );
+
+  if (pagination) {
+    const result =
+      user.role === "admin"
+        ? await listAllDemandesPaginated(pagination.page, pagination.limit)
+        : await listDemandesForUserPaginated(
+            user.id,
+            pagination.page,
+            pagination.limit,
+          );
+
+    const demandes = result.rows
+      .map((row) => formatDemandeDisplay(row))
+      .filter((row): row is NonNullable<typeof row> => row !== null);
+
+    return NextResponse.json({ demandes, pagination: result.pagination });
+  }
 
   const rows =
     user.role === "admin"
@@ -112,36 +138,49 @@ export async function POST(
 
     const client = userId ? await findAppUserById(userId) : null;
 
-    try {
-      sendMessage({
-        technicianNumber: technician?.telephone ?? "0672651376",
-        technicianName: technician?.name ?? "John Doe",
-        clientName: client?.name ?? "John Doe",
-        description: description ?? "Description de la demande",
-        type: type ?? "IA",
-        priority: priorite ?? "Normal",
-      }).then(() => {
-        void logActivity({
+    if (technician?.telephone) {
+      try {
+        await sendMessage({
+          demandeId: row.id,
+          technicianNumber: technician.telephone,
+          technicianName: technician.name,
+          clientName: client?.name ?? "Client",
+          description: description.trim(),
+          type,
+          priority: priorite,
+        });
+
+        await logActivity({
           demandeId: row.id,
           userId: null,
           action: "whatsapp_message_sent",
           details: {
-            technicianName: technician?.name ?? "John Doe",
-            technicianNumber: technician?.telephone ?? "0672651376",
-            clientName: client?.name ?? "John Doe",
-            description: description ?? "Description de la demande",
-            type: type ?? "IA",
-            priority: priorite ?? "Normal",
+            technicianId: technician.id,
+            technicianName: technician.name,
+            technicianNumber: technician.telephone,
+            clientName: client?.name ?? "Client",
+            description: description.trim(),
+            type,
+            priority: priorite,
+            initialNotification: true,
           },
           isPublic: true,
         });
-      });
-    } catch (error) {
-      console.error(error);
-      return NextResponse.json(
-        { error: "Erreur lors de l'envoi du message" },
-        { status: 500 },
-      );
+      } catch (error) {
+        console.error(error);
+        await logActivity({
+          demandeId: row.id,
+          userId: null,
+          action: "whatsapp_message_failed",
+          details: {
+            technicianId: technician.id,
+            technicianName: technician.name,
+            error: error instanceof Error ? error.message : "Erreur inconnue",
+            initialNotification: true,
+          },
+          isPublic: true,
+        });
+      }
     }
 
     const demande = formatDemandeDisplay(await getDemandeById(row.id));

@@ -52,6 +52,11 @@ function formatActivity(entry: DemandeActivityRow): string {
     ? (JSON.parse(entry.details) as Record<string, unknown>)
     : {};
   const technicianName = String(details.technicianName ?? "Technicien");
+  const toTechnicianName = String(
+    details.toTechnicianName ?? details.technicianName ?? "Technicien",
+  );
+  const fromTechnicianName = String(details.fromTechnicianName ?? "Technicien");
+  const clientPhone = details.clientPhone ? String(details.clientPhone) : null;
 
   switch (entry.action) {
     case "creation":
@@ -69,10 +74,17 @@ function formatActivity(entry: DemandeActivityRow): string {
     case "note_deleted":
       return "a supprimé une note interne";
     case "whatsapp_technician_accepted":
-      return `${technicianName} a accepté via WhatsApp`;
+      return clientPhone
+        ? `${technicianName} a accepté via WhatsApp — contact client : ${clientPhone}`
+        : `${technicianName} a accepté via WhatsApp`;
     case "whatsapp_technician_refused":
       return `${technicianName} a refusé via WhatsApp`;
+    case "whatsapp_technician_reassigned":
+      return `Réassignée à ${toTechnicianName} après refus de ${fromTechnicianName}`;
     case "whatsapp_message_sent":
+      if (details.reassignedAfterRefusal) {
+        return `Notification WhatsApp de réassignation envoyée à ${technicianName}`;
+      }
       return `Notification WhatsApp envoyée à ${technicianName}`;
     case "whatsapp_message_failed":
       return `Échec envoi WhatsApp à ${technicianName}`;
@@ -200,7 +212,11 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
           author: personName([a.user_prenom, a.user_nom], a.user_name),
           text: formatActivity(a),
         }))
-        .sort((x, y) => new Date(x.at).getTime() - new Date(y.at).getTime()),
+        .sort((x, y) => {
+          const timeDiff =
+            new Date(x.at).getTime() - new Date(y.at).getTime();
+          return timeDiff !== 0 ? timeDiff : x.id - y.id;
+        }),
     [activity],
   );
 

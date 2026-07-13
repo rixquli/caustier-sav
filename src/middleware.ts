@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isPublicApiRoute } from "@/lib/api-public-paths";
 import { ADMIN_ROUTES } from "@/lib/navigation";
 import type { MeResponse } from "@/types/user";
 
@@ -9,28 +10,43 @@ function isAdminRoute(pathname: string): boolean {
   );
 }
 
-const PUBLIC_PATHS = ["/login", "/api/auth"];
+const PUBLIC_PAGE_PATHS = ["/login"];
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
-
-  if (pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
-
+async function getSessionUser(request: NextRequest) {
   const sessionRes = await fetch(new URL("/api/me", request.url).toString(), {
     headers: { cookie: request.headers.get("cookie") || "" },
     cache: "no-store",
   });
 
-  const data = sessionRes.ok
-    ? ((await sessionRes.json()) as MeResponse)
-    : null;
-  const user = data?.user;
+  if (!sessionRes.ok) {
+    return null;
+  }
+
+  const data = (await sessionRes.json()) as MeResponse;
+  return data?.user ?? null;
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/api/")) {
+    if (isPublicApiRoute(pathname)) {
+      return NextResponse.next();
+    }
+
+    const user = await getSessionUser(request);
+    if (!user) {
+      return NextResponse.json({ error: "Non authentifié." }, { status: 401 });
+    }
+
+    return NextResponse.next();
+  }
+
+  if (PUBLIC_PAGE_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  const user = await getSessionUser(request);
 
   if (pathname === "/login") {
     if (user) {

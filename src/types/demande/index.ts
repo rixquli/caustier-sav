@@ -7,6 +7,8 @@ export type {
   DemandeRowJoined,
   DemandeDisplay,
   DemandeId,
+  DemandeListPagination,
+  DemandeListResult,
   ListDemandesParams,
   CreateDemandeInput,
   UpdateDemandeInput,
@@ -20,6 +22,7 @@ export type {
 
 export type {
   ApiErrorResponse,
+  ListDemandesPagination,
   ListDemandesResponse,
   CreateDemandeRequest,
   CreateDemandeResponse,
