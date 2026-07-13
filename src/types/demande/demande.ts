@@ -30,6 +30,7 @@ export type DemandeRow = {
   read_by_client: 0 | 1;
   read_by_admin: 0 | 1;
   notes_admin: string | null;
+  closed_message: string | null;
 };
 
 /** Champs issus des JOIN sur client, technicien et machine. */
@@ -65,6 +66,7 @@ export type DemandeDisplay = Omit<DemandeRow, DemandeHiddenFields> &
     closedAt: string | null;
     readByClient: boolean;
     readByAdmin: boolean;
+    closedMessage: string | null;
     userId: string;
     machineId: number | null;
     assignedTo: string | null;
@@ -78,12 +80,27 @@ export type DemandeDisplay = Omit<DemandeRow, DemandeHiddenFields> &
     machine_id: number | null;
     assigned_to: string | null;
     notes_admin: string | null;
+    closed_message: string | null;
   };
 
 export type DemandeId = DemandeRow["id"] | string;
 
 export type ListDemandesParams = {
   search?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type DemandeListPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
+export type DemandeListResult = {
+  rows: DemandeRowJoined[];
+  pagination: DemandeListPagination;
 };
 
 export type CreateDemandeInput = Pick<
@@ -110,6 +127,7 @@ export type UpdateDemandeInput = Partial<
     | "notes_admin"
     | "read_by_client"
     | "read_by_admin"
+    | "closed_message"
   >
 > & {
   assignedTo?: string | null;
@@ -118,6 +136,7 @@ export type UpdateDemandeInput = Partial<
   notesAdmin?: string | null;
   readByClient?: boolean;
   readByAdmin?: boolean;
+  closedMessage?: string | null;
 };
 
 export type DemandeMessageRow = {

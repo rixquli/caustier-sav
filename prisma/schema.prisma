@@ -13,34 +13,36 @@ datasource db {
 // --- Better Auth ---
 
 model User {
-  id                 String    @id
+  id                 String   @id
   name               String
-  email              String    @unique
-  emailVerified      Boolean   @default(false) @map("emailVerified")
+  email              String   @unique
+  emailVerified      Boolean  @default(false) @map("emailVerified")
   image              String?
-  createdAt          DateTime  @default(now()) @map("createdAt")
-  updatedAt          DateTime  @updatedAt @map("updatedAt")
-  role               String?   @default("client")
+  createdAt          DateTime @default(now()) @map("createdAt")
+  updatedAt          DateTime @updatedAt @map("updatedAt")
+  role               String?  @default("client")
   nom                String?
   prenom             String?
   phone              String?
   adresse            String?
-  archived           Boolean?  @default(false)
-  mustChangePassword Boolean?  @default(false)
+  archived           Boolean? @default(false)
+  mustChangePassword Boolean? @default(false)
   notes_admin        String?
 
-  sessions       Session[]
-  accounts       Account[]
-  machines       Machine[]
-  demandes       Demande[]
-  messages       Message[]
-  demandeNotes   DemandeNote[]
-  clientNotes    ClientNote[]  @relation("ClientNotes")
-  adminNotes     ClientNote[]  @relation("AdminNotes")
+  sessions        Session[]
+  accounts        Account[]
+  machines        Machine[]
+  demandes        Demande[]
+  messages        Message[]
+  demandeNotes    DemandeNote[]
+  clientNotes     ClientNote[]      @relation("ClientNotes")
+  adminNotes      ClientNote[]      @relation("AdminNotes")
   demandeActivity DemandeActivity[]
-  faqHistory     FaqHistory[]
-  notifications  Notification[]
+  faqHistory      FaqHistory[]
+  notifications   Notification[]
 
+  @@index([role])
+  @@index([archived])
   @@map("user")
 }
 
@@ -91,20 +93,20 @@ model Verification {
 // --- Métier SAV ---
 
 model Machine {
-  id                 Int       @id @default(autoincrement())
-  userId             String    @map("user_id")
-  nom                String
-  marque             String?
-  produits_calibres  String?
-  version_logiciel   String?
+  id                   Int      @id @default(autoincrement())
+  userId               String   @map("user_id")
+  nom                  String
+  marque               String?
+  produits_calibres    String?
+  version_logiciel     String?
   date_mise_en_service String?
-  pilote_ligne       String?
-  technicien_charge  String?
-  nombre_lignes      Int?
-  serveurs_vision    String?
-  notes_internes     String?
-  created_at         DateTime  @default(now())
-  updated_at         DateTime  @updatedAt
+  pilote_ligne         String?
+  technicien_charge    String?
+  nombre_lignes        Int?
+  serveurs_vision      String?
+  notes_internes       String?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   demandes Demande[]
@@ -154,6 +156,13 @@ model Demande {
   activity      DemandeActivity[]
   notifications Notification[]
 
+  closed_message String?
+
+  @@index([userId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([created_at])
+  @@index([last_activity_at])
   @@map("demandes")
 }
 
@@ -167,6 +176,7 @@ model Message {
   demande Demande @relation(fields: [demandeId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([demandeId])
   @@map("messages")
 }
 
@@ -199,11 +209,11 @@ model ClientNote {
 }
 
 model TechnicienNote {
-  id            Int      @id @default(autoincrement())
-  technicienId  Int      @map("technicien_id")
-  contenu       String
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id           Int      @id @default(autoincrement())
+  technicienId Int      @map("technicien_id")
+  contenu      String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
 
   technicien Technicien @relation(fields: [technicienId], references: [id], onDelete: Cascade)
 
@@ -265,5 +275,14 @@ model Notification {
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   demande Demande? @relation(fields: [demandeId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([read_at])
   @@map("notifications")
+}
+
+model WhatsappProcessedEvent {
+  id         String   @id
+  created_at DateTime @default(now())
+
+  @@map("whatsapp_processed_events")
 }

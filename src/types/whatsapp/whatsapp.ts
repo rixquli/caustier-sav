@@ -50,6 +50,7 @@ export type WhatsappMessageStatus = {
 };
 
 export type SendWhatsappTemplateInput = {
+  demandeId: number;
   technicianNumber: string;
   technicianName: string;
   clientName: string;
@@ -59,3 +60,8 @@ export type SendWhatsappTemplateInput = {
 };
 
 export type TechnicianReplyKind = "accept" | "refuse" | "unknown";
+
+export type TechnicianReply = {
+  kind: TechnicianReplyKind;
+  demandeId: number | null;
+};

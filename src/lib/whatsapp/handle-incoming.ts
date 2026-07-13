@@ -1,24 +1,118 @@
 import {
-  findAwaitingTechnicianResponse,
+  findPendingWhatsappDemandeForTechnician,
   getDemandeById,
   getNextTechnicianBySpecialite,
   getRefusedTechnicianIdsForDemande,
   getTechnicianByPhone,
+  getTechnicianWhatsappResponseForDemande,
   logActivity,
   notifyAdmins,
+  resolveDemandeForTechnicianWhatsappReply,
   updateDemande,
 } from "@/db/db";
+import {
+  claimWhatsappEvent,
+  releaseWhatsappEvent,
+} from "@/db/whatsapp-events";
 import { createNotification } from "@/db/notifications";
 import type { WhatsappIncomingMessage } from "@/types/whatsapp";
+import {
+  buildAcceptanceConfirmationBody,
+  getClientContactInfo,
+} from "./client-contact";
 import { waError, waLog, waWarn } from "./logger";
 import { normalizeWhatsappPhone } from "./phone";
-import {
-  classifyTechnicianReply,
-  extractMessageText,
-} from "./reply";
+import { extractMessageText, parseTechnicianReply } from "./reply";
 import { sendMessage, sendTextMessage } from "./send";
 
+async function notifyTechnician(
+  technicianPhone: string,
+  body: string,
+): Promise<void> {
+  try {
+    await sendTextMessage(technicianPhone, body);
+  } catch (error) {
+    waError("Échec envoi message WhatsApp au technicien", error);
+  }
+}
+
+async function resolveDemandeForReply(
+  technicianId: number,
+  demandeIdHint: number | null,
+) {
+  if (demandeIdHint != null) {
+    const demande = await resolveDemandeForTechnicianWhatsappReply(
+      technicianId,
+      demandeIdHint,
+    );
+    if (demande) return demande;
+
+    const existing = await getDemandeById(demandeIdHint);
+    if (!existing) {
+      return { error: `Demande #${demandeIdHint} introuvable.` } as const;
+    }
+
+    const prior = await getTechnicianWhatsappResponseForDemande(
+      demandeIdHint,
+      technicianId,
+    );
+    if (prior === "accepted") {
+      return {
+        error: `Vous avez déjà accepté la demande #${demandeIdHint}.`,
+      } as const;
+    }
+    if (prior === "refused") {
+      return {
+        error: `Vous avez déjà refusé la demande #${demandeIdHint}.`,
+      } as const;
+    }
+    if (existing.status !== "nouvelle") {
+      return {
+        error: `La demande #${demandeIdHint} n'est plus en attente de réponse.`,
+      } as const;
+    }
+    if (String(existing.assigned_to) !== String(technicianId)) {
+      return {
+        error: `La demande #${demandeIdHint} n'est plus assignée à vous.`,
+      } as const;
+    }
+
+    return {
+      error: `Impossible de traiter la demande #${demandeIdHint}.`,
+    } as const;
+  }
+
+  const pending = await findPendingWhatsappDemandeForTechnician(technicianId);
+  if (pending) return pending;
+
+  return {
+    error:
+      "Aucune demande en attente de votre réponse. Utilisez les boutons du dernier message reçu.",
+  } as const;
+}
+
 export async function handleIncomingWhatsappMessage(
+  message: WhatsappIncomingMessage,
+): Promise<void> {
+  const claimed = await claimWhatsappEvent(message.id);
+  if (!claimed) {
+    waLog("Message déjà traité — ignoré", { messageId: message.id });
+    return;
+  }
+
+  try {
+    await processIncomingWhatsappMessage(message);
+  } catch (error) {
+    try {
+      await releaseWhatsappEvent(message.id);
+    } catch (releaseError) {
+      waError("Échec libération idempotence WhatsApp", releaseError);
+    }
+    throw error;
+  }
+}
+
+async function processIncomingWhatsappMessage(
   message: WhatsappIncomingMessage,
 ): Promise<void> {
   waLog("Message entrant", {
@@ -41,11 +135,11 @@ export async function handleIncomingWhatsappMessage(
 
   waLog("Texte extrait", { text });
 
-  const replyKind = classifyTechnicianReply(text);
-  waLog("Classification réponse", { text, replyKind });
+  const reply = parseTechnicianReply(message);
+  waLog("Classification réponse", { text, reply });
 
-  if (replyKind === "unknown") {
-    waWarn("Réponse non reconnue (attendu: oui/non)", {
+  if (reply.kind === "unknown") {
+    waWarn("Réponse non reconnue (attendu: oui/non ou boutons)", {
       text,
       from: message.from,
     });
@@ -69,14 +163,18 @@ export async function handleIncomingWhatsappMessage(
     specialite: technician.specialite,
   });
 
-  const demande = await findAwaitingTechnicianResponse(technician.id);
-  if (!demande) {
-    waWarn("Aucune demande en attente", {
+  const resolved = await resolveDemandeForReply(technician.id, reply.demandeId);
+  if ("error" in resolved) {
+    waWarn("Réponse WhatsApp rejetée", {
       technicianId: technician.id,
-      hint: "Il faut une demande avec status=nouvelle assignée à ce technicien (ou non assignée avec type=spécialité)",
+      demandeIdHint: reply.demandeId,
+      reason: resolved.error,
     });
+    await notifyTechnician(technician.telephone, resolved.error);
     return;
   }
+
+  const demande = resolved;
 
   waLog("Demande trouvée", {
     demandeId: demande.id,
@@ -84,9 +182,10 @@ export async function handleIncomingWhatsappMessage(
     assignedTo: demande.assigned_to,
     type: demande.type,
     titre: demande.titre,
+    demandeIdHint: reply.demandeId,
   });
 
-  if (replyKind === "accept") {
+  if (reply.kind === "accept") {
     waLog("Traitement acceptation…", { demandeId: demande.id });
 
     await updateDemande(
@@ -98,6 +197,9 @@ export async function handleIncomingWhatsappMessage(
       null,
     );
 
+    const updated = await getDemandeById(demande.id);
+    const contact = getClientContactInfo(updated ?? demande);
+
     await logActivity({
       demandeId: demande.id,
       userId: null,
@@ -108,6 +210,9 @@ export async function handleIncomingWhatsappMessage(
         phone: message.from,
         messageId: message.id,
         reply: text,
+        clientName: contact.clientName,
+        clientPhone: contact.clientPhone,
+        clientEmail: contact.clientEmail,
       },
       isPublic: true,
     });
@@ -119,11 +224,11 @@ export async function handleIncomingWhatsappMessage(
       message: `Demande #${demande.id} · ${technician.name} a accepté votre demande.`,
     });
 
-    const updated = await getDemandeById(demande.id);
     waLog("Vérification post-acceptation", {
       demandeId: demande.id,
       status: updated?.status,
       assignedTo: updated?.assigned_to,
+      clientPhone: contact.clientPhone,
     });
 
     if (updated?.status !== "en_cours") {
@@ -135,21 +240,10 @@ export async function handleIncomingWhatsappMessage(
       });
     }
 
-    const clientName =
-      demande.client_name?.trim() ||
-      [demande.client_prenom, demande.client_nom].filter(Boolean).join(" ") ||
-      "le client";
-    const clientPhone = demande.client_phone?.trim();
-
-    try {
-      const confirmationBody = clientPhone
-        ? `Demande #${demande.id} acceptée. Vous pouvez contacter ${clientName} au ${clientPhone}.`
-        : `Demande #${demande.id} acceptée. Vous pouvez contacter ${clientName}.`;
-
-      await sendTextMessage(technician.telephone, confirmationBody);
-    } catch (error) {
-      waError("Échec envoi confirmation WhatsApp au technicien", error);
-    }
+    await notifyTechnician(
+      technician.telephone,
+      buildAcceptanceConfirmationBody(demande.id, contact),
+    );
 
     waLog("Acceptation OK", {
       demandeId: demande.id,
@@ -186,7 +280,7 @@ export async function handleIncomingWhatsappMessage(
       demande.id,
       { assignedTo: null },
       null,
-      { skipNotifications: true },
+      { skipNotifications: true, skipActivityLog: true },
     );
 
     await logActivity({
@@ -206,6 +300,11 @@ export async function handleIncomingWhatsappMessage(
       message: `Demande #${demande.id} · aucun technicien disponible (${demande.type}) après refus.`,
     });
 
+    await notifyTechnician(
+      technician.telephone,
+      `Demande #${demande.id} refusée. Aucun autre technicien disponible.`,
+    );
+
     waWarn("Aucun autre technicien disponible", {
       demandeId: demande.id,
       refusedIds,
@@ -218,19 +317,30 @@ export async function handleIncomingWhatsappMessage(
     demande.id,
     { assignedTo: String(nextTechnician.id) },
     null,
-    { skipNotifications: true },
+    { skipNotifications: true, skipActivityLog: true },
   );
 
-  const clientName =
-    demande.client_name?.trim() ||
-    [demande.client_prenom, demande.client_nom].filter(Boolean).join(" ") ||
-    "Client";
+  await logActivity({
+    demandeId: demande.id,
+    userId: null,
+    action: "whatsapp_technician_reassigned",
+    details: {
+      fromTechnicianId: technician.id,
+      fromTechnicianName: technician.name,
+      toTechnicianId: nextTechnician.id,
+      toTechnicianName: nextTechnician.name,
+    },
+    isPublic: true,
+  });
+
+  const contact = getClientContactInfo(demande);
 
   try {
     await sendMessage({
+      demandeId: demande.id,
       technicianNumber: nextTechnician.telephone,
       technicianName: nextTechnician.name,
-      clientName,
+      clientName: contact.clientName,
       description: demande.description,
       type: demande.type,
       priority: demande.priorite,
@@ -244,15 +354,21 @@ export async function handleIncomingWhatsappMessage(
         technicianId: nextTechnician.id,
         technicianName: nextTechnician.name,
         technicianNumber: nextTechnician.telephone,
-        clientName,
+        clientName: contact.clientName,
         description: demande.description,
         type: demande.type,
         priority: demande.priorite,
         reassignedAfterRefusal: true,
         previousTechnicianId: technician.id,
+        previousTechnicianName: technician.name,
       },
       isPublic: true,
     });
+
+    await notifyTechnician(
+      technician.telephone,
+      `Demande #${demande.id} refusée. Elle a été proposée à ${nextTechnician.name}.`,
+    );
 
     waLog("Réassignation OK", {
       demandeId: demande.id,

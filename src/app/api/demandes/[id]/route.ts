@@ -108,6 +108,7 @@ export async function PATCH(
         machineId: body.machineId ?? body.machine_id,
         userId: body.userId ?? body.user_id,
         notesAdmin: body.notes_admin ?? body.notesAdmin,
+        closedMessage: body.closed_message ?? body.closedMessage,
       },
       user.id,
     );

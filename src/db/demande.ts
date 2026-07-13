@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { buildPaginationMeta } from "@/lib/pagination";
 import { createNotification, notifyAdmins as notifyAdminsRaw } from "./notifications";
 import { buildStatusChangeMessage } from "@/lib/notifications";
 import { parseOptionalInt, toBoolFlag, toIsoString, toIsoStringOrNull } from "./helpers";
@@ -8,6 +9,7 @@ import type {
   DemandeActivityRow,
   DemandeDisplay,
   DemandeId,
+  DemandeListResult,
   DemandeRowJoined,
   LogDemandeActivityInput,
   UpdateDemandeInput,
@@ -65,6 +67,7 @@ function mapDemandeRowJoined(row: DemandeWithJoins): DemandeRowJoined {
     read_by_client: toBoolFlag(row.read_by_client),
     read_by_admin: toBoolFlag(row.read_by_admin),
     notes_admin: row.notes_admin,
+    closed_message: row.closed_message,
     client_nom: row.user.nom,
     client_prenom: row.user.prenom,
     client_name: row.user.name,
@@ -91,6 +94,8 @@ export function formatDemandeDisplay(
     status: row.status,
     notes_admin: row.notes_admin,
     notesAdmin: row.notes_admin,
+    closedMessage: row.closed_message,
+    closed_message: row.closed_message,
     client_nom: row.client_nom,
     client_prenom: row.client_prenom,
     client_name: row.client_name,
@@ -171,6 +176,103 @@ export async function getRefusedTechnicianIdsForDemande(
   return [...ids];
 }
 
+export type TechnicianWhatsappResponse = "accepted" | "refused";
+
+export async function getTechnicianWhatsappResponseForDemande(
+  demandeId: number,
+  technicianId: TechnicienId,
+): Promise<TechnicianWhatsappResponse | null> {
+  const techId = parseOptionalInt(technicianId);
+  if (techId == null) return null;
+
+  const activities = await prisma.demandeActivity.findMany({
+    where: {
+      demandeId,
+      action: {
+        in: ["whatsapp_technician_accepted", "whatsapp_technician_refused"],
+      },
+    },
+    select: { action: true, details: true },
+    orderBy: [{ created_at: "desc" }, { id: "desc" }],
+  });
+
+  for (const activity of activities) {
+    if (!activity.details) continue;
+    try {
+      const details = JSON.parse(activity.details) as {
+        technicianId?: number;
+      };
+      if (details.technicianId !== techId) continue;
+      return activity.action === "whatsapp_technician_accepted"
+        ? "accepted"
+        : "refused";
+    } catch {
+      // ignore malformed activity payloads
+    }
+  }
+
+  return null;
+}
+
+export async function findPendingWhatsappDemandeForTechnician(
+  technicianId: TechnicienId,
+): Promise<DemandeRowJoined | undefined> {
+  const techId = parseOptionalInt(technicianId);
+  if (techId == null) return undefined;
+
+  const sentActivities = await prisma.demandeActivity.findMany({
+    where: { action: "whatsapp_message_sent" },
+    orderBy: [{ created_at: "desc" }, { id: "desc" }],
+    select: { demandeId: true, details: true },
+  });
+
+  for (const activity of sentActivities) {
+    if (!activity.details) continue;
+
+    let details: { technicianId?: number };
+    try {
+      details = JSON.parse(activity.details) as { technicianId?: number };
+    } catch {
+      continue;
+    }
+
+    if (details.technicianId !== techId) continue;
+
+    const prior = await getTechnicianWhatsappResponseForDemande(
+      activity.demandeId,
+      techId,
+    );
+    if (prior) continue;
+
+    const demande = await getDemandeById(activity.demandeId);
+    if (!demande) continue;
+    if (demande.status !== "nouvelle") continue;
+    if (String(demande.assigned_to) !== String(techId)) continue;
+
+    return demande;
+  }
+
+  return undefined;
+}
+
+export async function resolveDemandeForTechnicianWhatsappReply(
+  technicianId: TechnicienId,
+  demandeId: DemandeId,
+): Promise<DemandeRowJoined | undefined> {
+  const techId = parseOptionalInt(technicianId);
+  if (techId == null) return undefined;
+
+  const demande = await getDemandeById(demandeId);
+  if (!demande) return undefined;
+  if (demande.status !== "nouvelle") return undefined;
+  if (String(demande.assigned_to) !== String(techId)) return undefined;
+
+  const prior = await getTechnicianWhatsappResponseForDemande(demande.id, techId);
+  if (prior) return undefined;
+
+  return demande;
+}
+
 export async function listActivityForDemande(
   demandeId: number,
   publicOnly = false,
@@ -185,7 +287,7 @@ export async function listActivityForDemande(
         select: { nom: true, prenom: true, name: true, role: true },
       },
     },
-    orderBy: { created_at: "asc" },
+    orderBy: [{ created_at: "asc" }, { id: "asc" }],
   });
 
   return rows.map((row) => ({
@@ -224,12 +326,59 @@ export async function listDemandesForUser(
   return rows.map(mapDemandeRowJoined);
 }
 
+export async function listDemandesForUserPaginated(
+  userId: string,
+  page: number,
+  limit: number,
+): Promise<DemandeListResult> {
+  const skip = (page - 1) * limit;
+  const where = { userId };
+
+  const [total, rows] = await Promise.all([
+    prisma.demande.count({ where }),
+    prisma.demande.findMany({
+      where,
+      include: demandeInclude,
+      orderBy: { created_at: "desc" },
+      skip,
+      take: limit,
+    }),
+  ]);
+
+  return {
+    rows: rows.map(mapDemandeRowJoined),
+    pagination: buildPaginationMeta(page, limit, total),
+  };
+}
+
 export async function listAllDemandes(): Promise<DemandeRowJoined[]> {
   const rows = await prisma.demande.findMany({
     include: demandeInclude,
     orderBy: { created_at: "desc" },
   });
   return rows.map(mapDemandeRowJoined);
+}
+
+export async function listAllDemandesPaginated(
+  page: number,
+  limit: number,
+): Promise<DemandeListResult> {
+  const skip = (page - 1) * limit;
+
+  const [total, rows] = await Promise.all([
+    prisma.demande.count(),
+    prisma.demande.findMany({
+      include: demandeInclude,
+      orderBy: { created_at: "desc" },
+      skip,
+      take: limit,
+    }),
+  ]);
+
+  return {
+    rows: rows.map(mapDemandeRowJoined),
+    pagination: buildPaginationMeta(page, limit, total),
+  };
 }
 
 export async function createDemande(
@@ -301,6 +450,10 @@ function normalizeUpdateFields(
     normalized.read_by_admin = fields.readByAdmin;
     delete normalized.readByAdmin;
   }
+  if (fields.closedMessage !== undefined) {
+    normalized.closed_message = fields.closedMessage;
+    delete normalized.closedMessage;
+  }
 
   return normalized;
 }
@@ -309,7 +462,10 @@ export async function updateDemande(
   id: DemandeId,
   fields: UpdateDemandeInput,
   actorId: string | null,
-  { skipNotifications = false }: { skipNotifications?: boolean } = {},
+  {
+    skipNotifications = false,
+    skipActivityLog = false,
+  }: { skipNotifications?: boolean; skipActivityLog?: boolean } = {},
 ): Promise<DemandeRowJoined | null> {
   const existing = await getDemandeById(id);
   if (!existing) return null;
@@ -343,6 +499,13 @@ export async function updateDemande(
       typeof normalized.notes_admin === "string"
         ? normalized.notes_admin.trim() || null
         : (normalized.notes_admin as string | null);
+  }
+
+  if (normalized.closed_message !== undefined) {
+    data.closed_message =
+      typeof normalized.closed_message === "string"
+        ? normalized.closed_message.trim() || null
+        : (normalized.closed_message as string | null);
   }
 
   if (normalized.status !== undefined) {
@@ -392,7 +555,7 @@ export async function updateDemande(
     });
   }
 
-  if (Object.keys(updates).length > 0) {
+  if (Object.keys(updates).length > 0 && !skipActivityLog) {
     if (updates.status) {
       await logActivity({
         demandeId: parseDemandeId(id),

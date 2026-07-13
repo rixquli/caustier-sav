@@ -11,8 +11,16 @@ export type ApiErrorResponse = {
   error: string;
 };
 
+export type ListDemandesPagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
+
 export type ListDemandesResponse = {
   demandes: DemandeDisplay[];
+  pagination?: ListDemandesPagination;
 };
 
 export type CreateDemandeRequest = {
@@ -42,6 +50,8 @@ export type UpdateDemandeRequest = Partial<
   machineId?: number | null;
   machine_id?: number | null;
   notesAdmin?: string | null;
+  closed_message?: string | null;
+  closedMessage?: string | null;
 };
 
 export type UpdateDemandeResponse = {

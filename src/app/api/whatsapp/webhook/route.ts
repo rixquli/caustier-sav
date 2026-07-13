@@ -123,6 +123,10 @@ export async function POST(
     }
   } catch (error) {
     waError("Erreur traitement payload", error);
+    return NextResponse.json(
+      { error: "Processing failed" },
+      { status: 500 },
+    );
   }
 
   waLog("POST terminé", { messageCount, statusCount });

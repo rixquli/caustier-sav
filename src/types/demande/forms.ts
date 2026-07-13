@@ -61,6 +61,21 @@ export type DemandeFormProps = {
   admins?: DemandeAdminOption[];
 };
 
+export type DemandeCloseFormProps = {
+  onSuccess: (demande: DemandeDisplay) => void;
+  demande: DemandeDisplay;
+};
+
+export type DemandeCloseFormState = {
+  message: string;
+};
+
+export type DemandeCloseModalProps = {
+  demande: DemandeDisplay | null;
+  onClose: () => void;
+  onUpdated?: (demande: DemandeDisplay) => void;
+};
+
 export type EditableDemandeFormProps = DemandeFormProps & {
   demande: DemandeDisplay;
 };
