@@ -1841,6 +1841,10 @@ select {
   margin-top: 1rem;
 }
 
+.detail-notes-admin {
+  margin-top: 1rem;
+}
+
 .detail-grid .page-card {
   margin-top: 0;
 }
@@ -3116,6 +3120,7 @@ select {
   flex-direction: column;
   align-items: center;
   flex-shrink: 0;
+  margin-bottom: -1.1rem;
 }
 
 .timeline-dot {

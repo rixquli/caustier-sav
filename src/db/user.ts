@@ -137,7 +137,11 @@ export async function updateAppUser(
 
   for (const key of allowed) {
     if (fields[key] !== undefined) {
-      data[key] = fields[key];
+      if (key === "archived" || key === "mustChangePassword") {
+        data[key] = toDbFlag(fields[key]);
+      } else {
+        data[key] = fields[key];
+      }
     }
   }
 

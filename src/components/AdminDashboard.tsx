@@ -273,7 +273,7 @@ export default function AdminDashboard({ user }: { user: UserDisplay }) {
           <div>
             <h1>
               Tableau de bord
-              <FiInfo
+              {/* <FiInfo
                 aria-hidden="true"
                 style={{
                   marginLeft: "0.5rem",
@@ -281,7 +281,7 @@ export default function AdminDashboard({ user }: { user: UserDisplay }) {
                   verticalAlign: "middle",
                 }}
                 size={18}
-              />
+              /> */}
             </h1>
             <p>Bienvenue, {user?.displayName || user?.nom}.</p>
           </div>

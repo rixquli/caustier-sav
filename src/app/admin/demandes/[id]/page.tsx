@@ -24,6 +24,7 @@ import type {
   UpdateDemandeRequest,
 } from "@/types/demande";
 import type { TechnicienDisplay } from "@/types/technicien";
+import { CloseDemandeModal } from "@/components/CloseDemandeModal";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -95,7 +96,10 @@ function formatActivity(entry: DemandeActivityRow): string {
   }
 }
 
-function personName(parts: (string | null | undefined)[], fallback?: string | null): string {
+function personName(
+  parts: (string | null | undefined)[],
+  fallback?: string | null,
+): string {
   return parts.filter(Boolean).join(" ") || fallback || "Système";
 }
 
@@ -111,6 +115,7 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
+  const [isCloseDemandeModalOpen, setIsCloseDemandeModalOpen] = useState(false);
 
   useEffect(() => {
     params.then((p) => setId(p.id));
@@ -172,16 +177,8 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
     await load();
   }
 
-  async function handleCloseTicket() {
-    if (!demande) return;
-    if (
-      !window.confirm(
-        `Fermer la demande « ${demande.titre} » ? Le client ne pourra plus y répondre.`,
-      )
-    ) {
-      return;
-    }
-    await quickUpdate({ status: "fermee" });
+  function handleCloseTicket() {
+    setIsCloseDemandeModalOpen(true);
   }
 
   async function handleDeleteTicket() {
@@ -206,15 +203,16 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
     () =>
       activity
         .filter((a) => a.action !== "message")
-        .map((a): TimelineEntry => ({
-          id: a.id,
-          at: a.created_at,
-          author: personName([a.user_prenom, a.user_nom], a.user_name),
-          text: formatActivity(a),
-        }))
+        .map(
+          (a): TimelineEntry => ({
+            id: a.id,
+            at: a.created_at,
+            author: personName([a.user_prenom, a.user_nom], a.user_name),
+            text: formatActivity(a),
+          }),
+        )
         .sort((x, y) => {
-          const timeDiff =
-            new Date(x.at).getTime() - new Date(y.at).getTime();
+          const timeDiff = new Date(x.at).getTime() - new Date(y.at).getTime();
           return timeDiff !== 0 ? timeDiff : x.id - y.id;
         }),
     [activity],
@@ -285,6 +283,18 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
                   Créée le {formatDateTime(demande.created_at)}
                   {demande.machine_nom ? ` · ${demande.machine_nom}` : ""}
                 </p>
+                {demande.notes_admin && (
+                  <div className="detail-notes-admin">
+                    <h4>Notes internes</h4>
+                    <p className="detail-path">{demande.notes_admin}</p>
+                  </div>
+                )}
+                {demande.closed_message && (
+                  <div className="detail-notes-admin">
+                    <h4>Message de fermeture</h4>
+                    <p className="detail-path">{demande.closed_message}</p>
+                  </div>
+                )}
               </div>
               <div className="detail-actions">
                 <div className="demande-quick-actions detail-demande-quick-actions">
@@ -361,7 +371,14 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
             <div className="form-field">
               <select
                 value={demande.status}
-                onChange={(e) => quickUpdate({ status: e.target.value })}
+                onChange={(e) => {
+                  const newStatus = e.target.value;
+                  if (newStatus === "fermee") {
+                    setIsCloseDemandeModalOpen(true);
+                    return;
+                  }
+                  quickUpdate({ status: newStatus });
+                }}
               >
                 {Object.entries(DEMANDE_STATUTS).map(([value, info]) => (
                   <option key={value} value={value}>
@@ -438,6 +455,17 @@ export default function AdminDemandeDetailPage({ params }: PageProps) {
           onClose={() => setEditing(false)}
           onUpdated={() => {
             setEditing(false);
+            load();
+          }}
+        />
+      )}
+      {isCloseDemandeModalOpen && (
+        <CloseDemandeModal
+          demande={demande}
+          onClose={() => setIsCloseDemandeModalOpen(false)}
+          onUpdated={(updated) => {
+            setDemande(updated);
+            setIsCloseDemandeModalOpen(false);
             load();
           }}
         />

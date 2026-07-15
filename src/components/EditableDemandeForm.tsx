@@ -95,7 +95,9 @@ export default function EditableDemandeForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as UpdateDemandeResponse | ApiErrorResponse;
+      const data = (await res.json()) as
+        | UpdateDemandeResponse
+        | ApiErrorResponse;
 
       if (!res.ok) {
         setError(

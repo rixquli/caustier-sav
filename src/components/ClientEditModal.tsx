@@ -163,7 +163,8 @@ export default function ClientEditModal({
               {message && <div className="alert alert-success">{message}</div>}
               {tempPassword && (
                 <div className="alert alert-info">
-                  Nouveau mot de passe temporaire : <strong>{tempPassword}</strong>
+                  Nouveau mot de passe temporaire :{" "}
+                  <strong>{tempPassword}</strong>
                 </div>
               )}
 

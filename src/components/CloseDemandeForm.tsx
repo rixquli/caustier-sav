@@ -14,7 +14,7 @@ export default function CloseDemandeForm({
 }: DemandeCloseFormProps) {
   const router = useRouter();
   const [form, setForm] = useState<DemandeCloseFormState>({
-    message: "",
+    message: demande.closed_message ?? "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,6 +47,7 @@ export default function CloseDemandeForm({
       setError(
         "error" in data ? data.error : "Erreur lors de l'enregistrement.",
       );
+      setLoading(false);
       return;
     }
 

@@ -37,10 +37,7 @@ export async function GET(
   const client = formatUserDisplay(await findAppUserById(id));
 
   if (!client || client.role !== "client") {
-    return NextResponse.json(
-      { error: "Client introuvable." },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Client introuvable." }, { status: 404 });
   }
 
   return NextResponse.json({
@@ -66,10 +63,7 @@ export async function PATCH(
   const existing = await findAppUserById(id);
 
   if (!existing || existing.role !== "client") {
-    return NextResponse.json(
-      { error: "Client introuvable." },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "Client introuvable." }, { status: 404 });
   }
 
   try {
@@ -93,7 +87,10 @@ export async function PATCH(
       await updateAppUser(id, { mustChangePassword: 1 });
     }
 
-    const name = [prenom?.trim() ?? existing.prenom, nom?.trim() ?? existing.nom]
+    const name = [
+      prenom?.trim() ?? existing.prenom,
+      nom?.trim() ?? existing.nom,
+    ]
       .filter(Boolean)
       .join(" ");
 
@@ -103,11 +100,7 @@ export async function PATCH(
       phone: phone?.trim() ?? existing.phone,
       adresse: adresse?.trim() ?? existing.adresse,
       archived:
-        archived !== undefined
-          ? archived
-            ? 1
-            : 0
-          : (existing.archived ?? undefined),
+        archived !== undefined ? archived : (existing.archived ?? undefined),
       name: name || existing.name,
       notes_admin:
         notes_admin !== undefined
@@ -132,7 +125,8 @@ export async function PATCH(
       machines: (await listMachinesForUser(id)) as ClientMachineSummary[],
       tempPassword,
     });
-  } catch {
+  } catch (error) {
+    console.error(error);
     return NextResponse.json(
       { error: "Une erreur est survenue." },
       { status: 500 },
