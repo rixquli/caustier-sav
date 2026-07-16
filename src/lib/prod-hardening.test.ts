@@ -5,10 +5,12 @@ import {
   parsePaginationQuery,
 } from "@/lib/pagination";
 import { verifyWhatsappSignature } from "@/lib/whatsapp/verify";
+import { buildHealthResponse, checkDatabaseHealth } from "@/lib/health";
 import { Prisma } from "@/generated/prisma/client";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    $queryRaw: vi.fn(),
     whatsappProcessedEvent: {
       create: vi.fn(),
       deleteMany: vi.fn(),
@@ -24,12 +26,14 @@ import {
 
 const mockedCreate = vi.mocked(prisma.whatsappProcessedEvent.create);
 const mockedDeleteMany = vi.mocked(prisma.whatsappProcessedEvent.deleteMany);
+const mockedQueryRaw = vi.mocked(prisma.$queryRaw);
 
 describe("isPublicApiRoute", () => {
-  it("autorise auth, webhook et /api/me", () => {
+  it("autorise auth, webhook, /api/me et /api/health", () => {
     expect(isPublicApiRoute("/api/auth/sign-in")).toBe(true);
     expect(isPublicApiRoute("/api/whatsapp/webhook")).toBe(true);
     expect(isPublicApiRoute("/api/me")).toBe(true);
+    expect(isPublicApiRoute("/api/health")).toBe(true);
   });
 
   it("refuse les routes métier", () => {
@@ -113,6 +117,38 @@ describe("releaseWhatsappEvent", () => {
 
     expect(mockedDeleteMany).toHaveBeenCalledWith({
       where: { id: "wamid.1" },
+    });
+  });
+});
+
+describe("checkDatabaseHealth", () => {
+  it("retourne ok quand la base répond", async () => {
+    mockedQueryRaw.mockResolvedValueOnce([{ "?column?": 1 }]);
+
+    await expect(checkDatabaseHealth()).resolves.toBe("ok");
+  });
+
+  it("retourne error quand la base est inaccessible", async () => {
+    mockedQueryRaw.mockRejectedValueOnce(new Error("connection refused"));
+
+    await expect(checkDatabaseHealth()).resolves.toBe("error");
+  });
+});
+
+describe("buildHealthResponse", () => {
+  it("retourne ok quand la base est saine", () => {
+    expect(buildHealthResponse("ok", "0.1.0")).toMatchObject({
+      status: "ok",
+      db: "ok",
+      version: "0.1.0",
+    });
+  });
+
+  it("retourne degraded quand la base est en erreur", () => {
+    expect(buildHealthResponse("error", "0.1.0")).toMatchObject({
+      status: "degraded",
+      db: "error",
+      version: "0.1.0",
     });
   });
 });

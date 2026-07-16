@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleIncomingWhatsappMessage } from "@/lib/whatsapp/handle-incoming";
 import { waError, waLog, waWarn } from "@/lib/whatsapp/logger";
+import { logApiError } from "@/lib/log-api-error";
 import { verifyWhatsappSignature } from "@/lib/whatsapp/verify";
 import type {
   ApiErrorResponse,
@@ -122,6 +123,7 @@ export async function POST(
       }
     }
   } catch (error) {
+    logApiError("/api/whatsapp/webhook", error, { method: "POST" });
     waError("Erreur traitement payload", error);
     return NextResponse.json(
       { error: "Processing failed" },

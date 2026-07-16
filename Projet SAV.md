@@ -1,4 +1,6 @@
 Documentation – Caustier CRM  
+
+> Installation, déploiement Docker et runbook ops : voir [README.md](README.md) et [docs/operations.md](docs/operations.md).
    
    
 Sommaire  

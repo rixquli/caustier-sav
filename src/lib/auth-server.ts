@@ -7,8 +7,13 @@ import {
   getAuthSecret,
   shouldSeedDemoUsers,
 } from "@/lib/env";
+import { logger } from "@/lib/logger";
 import { setUserPassword } from "@/lib/password-utils";
 import type { UserRole } from "@/types/user";
+
+const ASSISTANT_IA_EMAIL = "assistant-ia@internal.caustier";
+const DEFAULT_ADMIN_EMAIL = "admin@caustier.fr";
+const DEFAULT_CLIENT_EMAIL = "client@caustier.fr";
 
 function createAuth() {
   return betterAuth({
@@ -84,27 +89,48 @@ export async function ensureAuthMigrations(): Promise<void> {
     await seedFaqIfEmpty();
     migrationsDone = true;
   } catch (err) {
-    console.error("Auth migration error:", err);
+    logger.error("Auth bootstrap error", {
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : undefined,
+    });
   }
 }
 
+async function countHumanAdmins(): Promise<number> {
+  return prisma.user.count({
+    where: {
+      role: "admin",
+      email: { not: ASSISTANT_IA_EMAIL },
+    },
+  });
+}
+
 async function seedDefaultUsers(): Promise<void> {
-  if (shouldSeedDemoUsers()) {
+  const bootstrapAdmin = (await countHumanAdmins()) === 0;
+  const seedDemo = shouldSeedDemoUsers();
+
+  if (seedDemo || bootstrapAdmin) {
+    if (bootstrapAdmin) {
+      logger.info("Bootstrap admin account", { email: DEFAULT_ADMIN_EMAIL });
+    }
+
     await seedDefaultUser({
-      email: "admin@caustier.fr",
+      email: DEFAULT_ADMIN_EMAIL,
       password: "admin123",
       name: "Admin Caustier",
       fields: {
         role: "admin",
         nom: "Caustier",
         prenom: "Admin",
-        mustChangePassword: 0,
+        mustChangePassword: bootstrapAdmin && !seedDemo ? 1 : 0,
         archived: 0,
       },
     });
+  }
 
+  if (seedDemo) {
     await seedDefaultUser({
-      email: "client@caustier.fr",
+      email: DEFAULT_CLIENT_EMAIL,
       password: "client123",
       name: "Demo Client",
       fields: {
@@ -118,7 +144,7 @@ async function seedDefaultUsers(): Promise<void> {
   }
 
   await seedDefaultUser({
-    email: "assistant-ia@internal.caustier",
+    email: ASSISTANT_IA_EMAIL,
     password: "assistant-ia-no-login",
     name: "Assistant IA",
     fields: {

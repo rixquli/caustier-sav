@@ -3,6 +3,7 @@ export const PUBLIC_API_PREFIXES = [
   "/api/auth",
   "/api/whatsapp/webhook",
   "/api/me",
+  "/api/health",
 ] as const;
 
 export function isPublicApiRoute(pathname: string): boolean {

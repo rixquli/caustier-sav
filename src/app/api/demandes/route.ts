@@ -14,6 +14,7 @@ import {
 } from "@/db/db";
 import { parsePaginationQuery } from "@/lib/pagination";
 import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
+import { logApiError } from "@/lib/log-api-error";
 import { sendMessage } from "@/lib/whatsapp/send";
 import type {
   ApiErrorResponse,
@@ -167,7 +168,7 @@ export async function POST(
           isPublic: true,
         });
       } catch (error) {
-        console.error(error);
+        logApiError("/api/demandes", error, { action: "whatsapp_message_sent" });
         await logActivity({
           demandeId: row.id,
           userId: null,
@@ -194,7 +195,7 @@ export async function POST(
 
     return NextResponse.json({ demande }, { status: 201 });
   } catch (error) {
-    console.error(error);
+    logApiError("/api/demandes", error, { method: "POST" });
     const message =
       error instanceof Error ? error.message : "Une erreur est survenue.";
     return NextResponse.json({ error: message }, { status: 500 });
