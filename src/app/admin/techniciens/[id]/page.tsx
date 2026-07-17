@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FiArrowLeft } from "react-icons/fi";
 import { LuPencil } from "react-icons/lu";
 import { getStatutInfo, getTypeBadge, getTypeLabel } from "@/lib/constants";
@@ -22,6 +23,7 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 export default function AdminTechnicianPage({ params }: PageProps) {
+  const router = useRouter();
   const [id, setId] = useState<string | null>(null);
   const [technician, setTechnician] = useState<TechnicienDisplay | null>(null);
   const [loading, setLoading] = useState(true);
@@ -206,6 +208,9 @@ export default function AdminTechnicianPage({ params }: PageProps) {
           onClose={() => setEditingTechnician(false)}
           onUpdated={(updated) => {
             setTechnician((prev) => (prev ? { ...prev, ...updated } : prev));
+          }}
+          onDeleted={() => {
+            router.push("/admin/techniciens");
           }}
         />
       )}

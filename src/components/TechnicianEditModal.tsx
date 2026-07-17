@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FiX } from "react-icons/fi";
 import type {
   ApiErrorResponse,
+  DeleteTechnicienResponse,
   TechnicianEditFormState,
   TechnicianEditModalProps,
   TechnicienDetailResponse,
@@ -26,10 +27,12 @@ export default function TechnicianEditModal({
   technicien,
   onClose,
   onUpdated,
+  onDeleted,
 }: TechnicianEditModalProps) {
   const [form, setForm] = useState<TechnicianEditFormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
@@ -116,6 +119,38 @@ export default function TechnicianEditModal({
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!technicianId) return;
+    const confirmed = window.confirm(
+      `Supprimer définitivement « ${technicien.name} » ? Cette action est irréversible.`,
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch(`/api/techniciens/${technicianId}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json()) as
+        | DeleteTechnicienResponse
+        | ApiErrorResponse;
+
+      if (!res.ok) {
+        setError("error" in data ? data.error : "Une erreur est survenue.");
+        return;
+      }
+
+      onDeleted?.(technicianId);
+      onClose();
+    } catch {
+      setError("Une erreur est survenue.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -217,9 +252,17 @@ export default function TechnicianEditModal({
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    disabled={saving}
+                    disabled={saving || deleting}
                   >
                     {saving ? "Enregistrement…" : "Enregistrer"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    disabled={saving || deleting}
+                    onClick={handleDelete}
+                  >
+                    {deleting ? "Suppression…" : "Supprimer"}
                   </button>
                 </div>
                 <Link
