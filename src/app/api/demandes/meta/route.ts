@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { listAdmins, listClients, listTechnicians } from "@/db/db";
-import { formatTechnicienDisplay } from "@/db/technicien";
 import { getSessionUser, requireAdmin } from "@/lib/session";
 import type { ApiErrorResponse, DemandeMetaResponse } from "@/types/demande";
 
@@ -16,16 +15,14 @@ export async function GET(): Promise<
     );
   }
 
-  const technicians = (await listTechnicians())
-    .map((row) => formatTechnicienDisplay(row))
-    .filter((row): row is NonNullable<typeof row> => row !== null)
-    .map((technicien) => ({
-      id: String(technicien.id),
-      name: technicien.name,
-      email: technicien.email,
-      specialite: technicien.specialite,
-      telephone: technicien.telephone,
-    }));
+  const technicians = (await listTechnicians()).map((technicien) => ({
+    id: String(technicien.id),
+    name: technicien.name,
+    email: technicien.email,
+    specialite: technicien.specialite,
+    telephone: technicien.telephone,
+    userId: technicien.userId,
+  }));
 
   return NextResponse.json({
     clients: await listClients(),

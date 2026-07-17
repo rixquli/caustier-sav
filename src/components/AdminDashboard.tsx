@@ -188,6 +188,7 @@ export default function AdminDashboard({ user }: { user: UserDisplay }) {
       (metaData.technicians ?? []).map(
         (technician): TechnicienDisplay => ({
           id: Number(technician.id),
+          userId: technician.userId ?? null,
           name: technician.name ?? "",
           specialite: technician.specialite ?? "",
           email: technician.email ?? "",

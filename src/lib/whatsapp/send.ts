@@ -28,15 +28,35 @@ async function postWhatsappMessage(body: Record<string, unknown>): Promise<void>
   }
 }
 
+/**
+ * Message interactif unique portant Accepter / Refuser.
+ * Le template Meta `notification_sav` doit être **sans boutons** (corps seul),
+ * sinon le technicien reçoit deux CTA.
+ */
 export async function sendDemandeResponseButtons(
   demandeId: number,
   technicianNumber: string,
+  context?: { clientName?: string; type?: string; priority?: string },
 ): Promise<void> {
   if (!technicianNumber?.trim()) {
     throw new Error("Missing required fields");
   }
 
   const to = normalizeWhatsappPhone(technicianNumber);
+  const meta = [
+    context?.clientName ? `Client : ${context.clientName}` : null,
+    context?.type ? `Type : ${context.type}` : null,
+    context?.priority ? `Priorité : ${context.priority}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const bodyText = [
+    `Demande #${demandeId} — Accepter ou refuser cette demande :`,
+    meta || null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   await postWhatsappMessage({
     messaging_product: "whatsapp",
@@ -44,9 +64,7 @@ export async function sendDemandeResponseButtons(
     type: "interactive",
     interactive: {
       type: "button",
-      body: {
-        text: `Demande #${demandeId} — confirmez votre réponse pour cette demande uniquement :`,
-      },
+      body: { text: bodyText },
       action: {
         buttons: [
           {
@@ -69,6 +87,14 @@ export async function sendDemandeResponseButtons(
   });
 }
 
+/**
+ * Offre WhatsApp (modèle B) :
+ * 1) template info (ouvre la fenêtre 24h) — sans boutons côté Meta
+ * 2) un seul message interactif Accepter/Refuser
+ *
+ * Si le template Meta a déjà des boutons, définir WHATSAPP_TEMPLATE_HAS_BUTTONS=1
+ * pour ne pas renvoyer le 2ᵉ message (évite le double CTA).
+ */
 export async function sendMessage({
   demandeId,
   technicianNumber,
@@ -92,6 +118,9 @@ export async function sendMessage({
 
   const to = normalizeWhatsappPhone(technicianNumber);
   const labeledDescription = `Demande #${demandeId} — ${description}`;
+  const templateHasButtons =
+    process.env.WHATSAPP_TEMPLATE_HAS_BUTTONS === "1" ||
+    process.env.WHATSAPP_TEMPLATE_HAS_BUTTONS === "true";
 
   await postWhatsappMessage({
     messaging_product: "whatsapp",
@@ -117,8 +146,16 @@ export async function sendMessage({
     },
   });
 
+  if (templateHasButtons) {
+    return;
+  }
+
   try {
-    await sendDemandeResponseButtons(demandeId, technicianNumber);
+    await sendDemandeResponseButtons(demandeId, technicianNumber, {
+      clientName,
+      type,
+      priority,
+    });
   } catch (error) {
     console.error(
       `[WhatsApp] Boutons Accepter/Refuser non envoyés pour demande #${demandeId}`,

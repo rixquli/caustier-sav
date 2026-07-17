@@ -59,15 +59,22 @@ export async function notifyAdmins({
   demandeId,
   message,
   excludeUserId = null,
+  excludeUserIds = [],
 }: {
   type: string;
   demandeId: number;
   message: string;
   excludeUserId?: string | null;
+  excludeUserIds?: string[];
 }): Promise<void> {
+  const excluded = new Set(
+    [excludeUserId, ...excludeUserIds].filter(
+      (id): id is string => typeof id === "string" && id.length > 0,
+    ),
+  );
   const admins = await listAdmins();
   for (const admin of admins) {
-    if (excludeUserId && admin.id === excludeUserId) continue;
+    if (excluded.has(admin.id)) continue;
     await createNotification({ userId: admin.id, type, demandeId, message });
   }
 }

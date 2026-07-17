@@ -1,8 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { buildPaginationMeta } from "@/lib/pagination";
 import { createNotification, notifyAdmins as notifyAdminsRaw } from "./notifications";
-import { buildStatusChangeMessage } from "@/lib/notifications";
+import {
+  buildStatusChangeMessage,
+  NOTIFICATION_TYPES,
+} from "@/lib/notifications";
+import { sendAssignmentEmail } from "@/lib/mail";
 import { parseOptionalInt, toBoolFlag, toIsoString, toIsoStringOrNull } from "./helpers";
+import { getTechnicianById } from "./technicien";
 import type { TechnicienId } from "@/types/technicien";
 import type {
   CreateDemandeInput,
@@ -45,8 +50,73 @@ async function notifyAdmins(params: {
   demandeId: number;
   message: string;
   excludeUserId?: string | null;
+  excludeUserIds?: string[];
 }): Promise<void> {
   await notifyAdminsRaw(params);
+}
+
+function isSelfAssignment(
+  actorId: string | null | undefined,
+  tech:
+    | { user_id?: string | null; userId?: string | null }
+    | null
+    | undefined,
+): boolean {
+  if (!actorId || !tech) return false;
+  const techUserId = tech.user_id ?? tech.userId ?? null;
+  return Boolean(techUserId && actorId === techUserId);
+}
+
+/** Notifie le compte User lié + email si pas de téléphone. */
+async function notifyAssigneeOnAssignment({
+  demandeId,
+  titre,
+  assignedTo,
+  actorId,
+}: {
+  demandeId: number;
+  titre: string;
+  assignedTo: string | number | null | undefined;
+  actorId?: string | null;
+}): Promise<void> {
+  const techId = parseOptionalInt(assignedTo ?? null);
+  if (techId == null) return;
+
+  const tech = await getTechnicianById(techId);
+  if (!tech) return;
+  if (actorId && tech.user_id && actorId === tech.user_id) return;
+
+  const message = `Une demande vous a été proposée : « ${titre} »`;
+
+  if (tech.user_id) {
+    await createNotification({
+      userId: tech.user_id,
+      type: NOTIFICATION_TYPES.DEMANDE_ASSIGNEE,
+      demandeId,
+      message,
+    });
+  }
+
+  const hasPhone = Boolean(tech.telephone?.trim());
+  const email = tech.email?.trim();
+  if (!hasPhone && email) {
+    const baseUrl = (
+      process.env.BETTER_AUTH_URL || "http://localhost:3000"
+    ).replace(/\/$/, "");
+    const mailResult = await sendAssignmentEmail({
+      to: email,
+      name: tech.name,
+      titre,
+      demandeId,
+      demandeUrl: `${baseUrl}/admin/demandes/${demandeId}`,
+    });
+    if (!mailResult.ok) {
+      console.error(
+        "[notifyAssigneeOnAssignment] email failed:",
+        mailResult.error,
+      );
+    }
+  }
 }
 
 function mapDemandeRowJoined(row: DemandeWithJoins): DemandeRowJoined {
@@ -411,12 +481,52 @@ export async function createDemande(
     isPublic: true,
   });
 
+  const assigneeTech =
+    demande.assigned_to != null
+      ? await getTechnicianById(demande.assigned_to)
+      : null;
+  const assigneeUserId = assigneeTech?.user_id ?? null;
+
   await notifyAdmins({
     type: "nouvelle_demande",
     demandeId: demande.id,
     message: `Nouvelle demande #${demande.id} : ${input.titre}`,
     excludeUserId: input.actorId,
+    excludeUserIds: assigneeUserId ? [assigneeUserId] : [],
   });
+
+  if (demande.assigned_to != null && assigneeTech) {
+    const selfAssign = isSelfAssignment(input.actorId, assigneeTech);
+
+    await notifyAssigneeOnAssignment({
+      demandeId: demande.id,
+      titre: demande.titre,
+      assignedTo: demande.assigned_to,
+      actorId: input.actorId,
+    });
+
+    const { offerDemandeToTechnician, deliverClientContactToTechnician } =
+      await import("@/lib/whatsapp/offer");
+
+    if (selfAssign) {
+      await deliverClientContactToTechnician({
+        demande,
+        technician: assigneeTech,
+        reason: "self_assign",
+      });
+    } else {
+      await offerDemandeToTechnician({
+        demandeId: demande.id,
+        technician: assigneeTech,
+        clientName: demande.client_name ?? "Client",
+        description: demande.description,
+        type: demande.type,
+        priority: demande.priorite,
+        titre: demande.titre,
+        activityDetails: { initialNotification: true },
+      });
+    }
+  }
 
   return demande;
 }
@@ -584,6 +694,50 @@ export async function updateDemande(
         details: updates,
         isPublic: true,
       });
+    }
+  }
+
+  if (
+    !skipNotifications &&
+    updates.assigned_to !== undefined &&
+    updates.assigned_to != null
+  ) {
+    const assignedTo = updates.assigned_to as string | number;
+    const tech = await getTechnicianById(assignedTo);
+    const selfAssign = isSelfAssignment(actorId, tech);
+
+    await notifyAssigneeOnAssignment({
+      demandeId: parseDemandeId(id),
+      titre:
+        typeof updates.titre === "string" ? updates.titre : existing.titre,
+      assignedTo,
+      actorId,
+    });
+
+    const updatedDemande = (await getDemandeById(id)) ?? existing;
+
+    if (tech) {
+      const { offerDemandeToTechnician, deliverClientContactToTechnician } =
+        await import("@/lib/whatsapp/offer");
+
+      if (selfAssign) {
+        await deliverClientContactToTechnician({
+          demande: updatedDemande,
+          technician: tech,
+          reason: "self_assign",
+        });
+      } else {
+        await offerDemandeToTechnician({
+          demandeId: parseDemandeId(id),
+          technician: tech,
+          clientName: updatedDemande.client_name ?? "Client",
+          description: updatedDemande.description,
+          type: updatedDemande.type,
+          priority: updatedDemande.priorite,
+          titre: updatedDemande.titre,
+          activityDetails: { reassignedByAdmin: true },
+        });
+      }
     }
   }
 

@@ -156,7 +156,8 @@ export function filterDemandes(
     const isActive = ACTIVE_STATUSES.includes(demande.status);
 
     if (filters.openOnly && !isActive) return false;
-    if (filters.mine && demande.assigned_to !== currentUserId) return false;
+    if (filters.mine && String(demande.assigned_to) !== String(currentUserId))
+      return false;
     if (filters.unassigned && demande.assigned_to) return false;
     if (filters.late) {
       const ageDays =

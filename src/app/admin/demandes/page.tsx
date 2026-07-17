@@ -79,6 +79,7 @@ export default function AdminDemandesPage() {
       (metaData.technicians ?? []).map(
         (technician): TechnicienDisplay => ({
           id: Number(technician.id),
+          userId: technician.userId ?? null,
           name: technician.name ?? "",
           specialite: technician.specialite ?? "",
           email: technician.email ?? "",
@@ -99,14 +100,20 @@ export default function AdminDemandesPage() {
     loadData().finally(() => setLoading(false));
   }, [loadData]);
 
+  const currentTechnicianId = useMemo(() => {
+    if (!user?.id) return undefined;
+    const tech = technicians.find((t) => t.userId === user.id);
+    return tech ? String(tech.id) : undefined;
+  }, [technicians, user?.id]);
+
   const filtered = useMemo(() => {
-    const result = filterDemandes(demandes, filters, user?.id);
+    const result = filterDemandes(demandes, filters, currentTechnicianId);
     return [...result].sort((a, b) => {
       const da = new Date(a.created_at).getTime();
       const db = new Date(b.created_at).getTime();
       return sortDesc ? db - da : da - db;
     });
-  }, [demandes, filters, sortDesc, user?.id]);
+  }, [demandes, filters, sortDesc, currentTechnicianId]);
 
   return (
     <div className="page admin-demandes-page">
@@ -141,7 +148,7 @@ export default function AdminDemandesPage() {
             clients={clients}
             admins={admins}
             technicians={technicians}
-            currentUserId={user?.id}
+            currentUserId={currentTechnicianId}
             sortDesc={sortDesc}
             onToggleSort={() => setSortDesc((v) => !v)}
             onUpdated={(updated) => {

@@ -10,12 +10,10 @@ import {
   listAllDemandesPaginated,
   listDemandesForUser,
   listDemandesForUserPaginated,
-  logActivity,
 } from "@/db/db";
 import { parsePaginationQuery } from "@/lib/pagination";
-import { getSessionUser, guardUser, authErrorResponse } from "@/lib/session";
+import { getSessionUser, guardUser } from "@/lib/session";
 import { logApiError } from "@/lib/log-api-error";
-import { sendMessage } from "@/lib/whatsapp/send";
 import type {
   ApiErrorResponse,
   CreateDemandeRequest,
@@ -136,53 +134,6 @@ export async function POST(
       assignedTo: assignedTo ?? (technician ? String(technician.id) : null),
       actorId: user.id,
     });
-
-    const client = userId ? await findAppUserById(userId) : null;
-
-    if (technician?.telephone) {
-      try {
-        await sendMessage({
-          demandeId: row.id,
-          technicianNumber: technician.telephone,
-          technicianName: technician.name,
-          clientName: client?.name ?? "Client",
-          description: description.trim(),
-          type,
-          priority: priorite,
-        });
-
-        await logActivity({
-          demandeId: row.id,
-          userId: null,
-          action: "whatsapp_message_sent",
-          details: {
-            technicianId: technician.id,
-            technicianName: technician.name,
-            technicianNumber: technician.telephone,
-            clientName: client?.name ?? "Client",
-            description: description.trim(),
-            type,
-            priority: priorite,
-            initialNotification: true,
-          },
-          isPublic: true,
-        });
-      } catch (error) {
-        logApiError("/api/demandes", error, { action: "whatsapp_message_sent" });
-        await logActivity({
-          demandeId: row.id,
-          userId: null,
-          action: "whatsapp_message_failed",
-          details: {
-            technicianId: technician.id,
-            technicianName: technician.name,
-            error: error instanceof Error ? error.message : "Erreur inconnue",
-            initialNotification: true,
-          },
-          isPublic: true,
-        });
-      }
-    }
 
     const demande = formatDemandeDisplay(await getDemandeById(row.id));
 

@@ -71,9 +71,11 @@ export default function ClientCreateModal({
       >
         <div className="modal-header">
           <div>
-            <h2>Nouveau client</h2>
+            <h2>{tempPassword ? "Client créé" : "Nouveau client"}</h2>
             <p className="modal-header-subtitle">
-              Créez un compte client avec mot de passe temporaire
+              {tempPassword
+                ? "Conservez le mot de passe temporaire ci-dessous"
+                : "Créez un compte client avec mot de passe temporaire"}
             </p>
           </div>
           <button
@@ -88,18 +90,20 @@ export default function ClientCreateModal({
 
         <div className="modal-form">
           {tempPassword ? (
-            <div style={{ padding: "0 0 0.5rem" }}>
+            <div className="form-card form-card--inline success-card">
               <div className="alert alert-success">
                 Client créé. Mot de passe temporaire à transmettre :{" "}
                 <strong>{tempPassword}</strong>
               </div>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={onClose}
-              >
-                Fermer
-              </button>
+              <div className="form-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={onClose}
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
           ) : (
             <form className="form-card form-card--inline" onSubmit={handleSubmit}>

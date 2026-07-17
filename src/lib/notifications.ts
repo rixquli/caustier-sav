@@ -15,6 +15,8 @@ export const NOTIFICATION_TYPES = {
   REPONSE_CLIENT: "reponse_client",
   REPONSE_ADMIN: "reponse_admin",
   STATUT_CHANGE: "statut_change",
+  /** Demande assignée au technicien lié (in-app / navigateur). */
+  DEMANDE_ASSIGNEE: "demande_assignee",
 } as const;
 
 export function getNotificationHref(

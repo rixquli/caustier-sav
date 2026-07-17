@@ -114,6 +114,7 @@ export type DemandeMetaPerson = {
   email?: string | null;
   specialite?: string | null;
   telephone?: string | null;
+  userId?: string | null;
 };
 
 export type DemandeMetaResponse = {
