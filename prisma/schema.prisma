@@ -40,6 +40,7 @@ model User {
   demandeActivity DemandeActivity[]
   faqHistory      FaqHistory[]
   notifications   Notification[]
+  technicien      Technicien?
 
   @@index([role])
   @@index([archived])
@@ -116,14 +117,16 @@ model Machine {
 
 model Technicien {
   id               Int      @id @default(autoincrement())
+  userId           String?  @unique @map("user_id")
   name             String
   specialite       String
   telephone        String
-  email            String
+  email            String   @unique
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
   notes_technicien String?
 
+  user     User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
   demandes Demande[]
   notes    TechnicienNote[]
 
