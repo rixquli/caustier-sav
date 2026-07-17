@@ -42,6 +42,10 @@ export default function AdminTechniciensPage() {
       .finally(() => setLoading(false));
   }, [search, includeArchived]);
 
+  const visibleTechniciens = techniciens.filter(
+    (t) => includeArchived || !t.archived,
+  );
+
   return (
     <PageLayout
       title="Techniciens"
@@ -81,7 +85,7 @@ export default function AdminTechniciensPage() {
 
       {loading ? (
         <p className="page-muted">Chargement…</p>
-      ) : techniciens.length === 0 ? (
+      ) : visibleTechniciens.length === 0 ? (
         <div className="empty-state">
           <p>Aucun technicien trouvé.</p>
         </div>
@@ -99,7 +103,7 @@ export default function AdminTechniciensPage() {
               </tr>
             </thead>
             <tbody>
-              {techniciens.map((t) => (
+              {visibleTechniciens.map((t) => (
                 <tr key={t.id}>
                   <td>
                     <Link

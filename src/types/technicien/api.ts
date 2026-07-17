@@ -19,6 +19,7 @@ export type CreateTechnicienRequest = {
 export type CreateTechnicienResponse = {
   technicien: TechnicienDisplay;
   tempPassword?: string;
+  emailSent?: boolean;
 };
 
 export type TechnicienDetailResponse = {

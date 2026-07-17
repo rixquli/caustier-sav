@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { getAuth } from "@/lib/auth-server";
 import {
   createTechnician,
+  findTechnicianByEmail,
   formatTechnicienDisplay,
+  getTechnicienDisplayById,
   listTechnicians,
 } from "@/db/technicien";
+import { findAppUserByEmail, updateAppUser } from "@/db/user";
+import { sendTechnicianWelcomeEmail } from "@/lib/mail";
+import { generateTempPassword } from "@/lib/password-utils";
 import { getSessionUser, requireAdmin } from "@/lib/session";
 import type {
   ApiErrorResponse,
@@ -11,6 +17,8 @@ import type {
   CreateTechnicienResponse,
   ListTechniciansResponse,
 } from "@/types/technicien";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function GET(
   request: Request,
@@ -27,9 +35,7 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") ?? "";
 
-  const techniciens = (await listTechnicians({ search }))
-    .map((row) => formatTechnicienDisplay(row))
-    .filter((row): row is NonNullable<typeof row> => row !== null);
+  const techniciens = await listTechnicians({ search });
 
   return NextResponse.json({ techniciens });
 }
@@ -50,15 +56,76 @@ export async function POST(
     const body = (await request.json()) as CreateTechnicienRequest;
     const { name, specialite, phone, email, notes } = body;
 
-    if (!name?.trim() || !email?.trim()) {
+    const trimmedName = name?.trim() ?? "";
+    const trimmedEmail = email?.trim().toLowerCase() ?? "";
+
+    if (!trimmedName || !trimmedEmail) {
       return NextResponse.json(
         { error: "Nom et email obligatoires." },
         { status: 400 },
       );
     }
 
-    const row = await createTechnician({ name, specialite, phone, email, notes });
-    const technicien = formatTechnicienDisplay(row);
+    if (!EMAIL_RE.test(trimmedEmail)) {
+      return NextResponse.json(
+        { error: "Format d'email invalide." },
+        { status: 400 },
+      );
+    }
+
+    if (await findAppUserByEmail(trimmedEmail)) {
+      return NextResponse.json(
+        { error: "Cet email est déjà utilisé." },
+        { status: 409 },
+      );
+    }
+
+    if (await findTechnicianByEmail(trimmedEmail)) {
+      return NextResponse.json(
+        { error: "Cet email est déjà utilisé par un technicien." },
+        { status: 409 },
+      );
+    }
+
+    const tempPassword = generateTempPassword();
+
+    await getAuth().api.signUpEmail({
+      body: {
+        email: trimmedEmail,
+        password: tempPassword,
+        name: trimmedName,
+      },
+    });
+
+    const createdUser = await findAppUserByEmail(trimmedEmail);
+    if (!createdUser) {
+      return NextResponse.json(
+        { error: "Une erreur est survenue." },
+        { status: 500 },
+      );
+    }
+
+    await updateAppUser(createdUser.id, {
+      role: "admin",
+      name: trimmedName,
+      nom: trimmedName,
+      phone: phone?.trim() || null,
+      mustChangePassword: 1,
+      archived: 0,
+    });
+
+    const row = await createTechnician({
+      name: trimmedName,
+      email: trimmedEmail,
+      specialite,
+      phone,
+      notes,
+      userId: createdUser.id,
+    });
+
+    const technicien =
+      (row ? await getTechnicienDisplayById(row.id) : null) ??
+      formatTechnicienDisplay(row ?? null);
 
     if (!technicien) {
       return NextResponse.json(
@@ -67,7 +134,25 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({ technicien }, { status: 201 });
+    const baseUrl = (
+      process.env.BETTER_AUTH_URL || "http://localhost:3000"
+    ).replace(/\/$/, "");
+    const mailResult = await sendTechnicianWelcomeEmail({
+      to: trimmedEmail,
+      name: trimmedName,
+      email: trimmedEmail,
+      tempPassword,
+      loginUrl: `${baseUrl}/login`,
+    });
+
+    return NextResponse.json(
+      {
+        technicien,
+        tempPassword,
+        emailSent: mailResult.ok,
+      },
+      { status: 201 },
+    );
   } catch (err) {
     console.error(err);
     return NextResponse.json(

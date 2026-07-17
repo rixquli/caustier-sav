@@ -133,6 +133,7 @@ export async function updateAppUser(
     "mustChangePassword",
     "name",
     "notes_admin",
+    "role",
   ];
 
   for (const key of allowed) {

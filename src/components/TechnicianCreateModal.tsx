@@ -25,6 +25,7 @@ export default function TechnicianCreateModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tempPassword, setTempPassword] = useState("");
+  const [emailSent, setEmailSent] = useState<boolean | null>(null);
 
   function setField<K extends keyof TechnicianCreateFormState>(
     key: K,
@@ -59,6 +60,7 @@ export default function TechnicianCreateModal({
       if (success.tempPassword) {
         setTempPassword(success.tempPassword);
       }
+      setEmailSent(success.emailSent ?? false);
       onCreated?.(success.technicien);
     } catch {
       setError("Erreur réseau.");
@@ -96,9 +98,20 @@ export default function TechnicianCreateModal({
           {tempPassword ? (
             <div style={{ padding: "0 0 0.5rem" }}>
               <div className="alert alert-success">
-                Technicien créé. Mot de passe temporaire à transmettre :{" "}
+                Technicien créé. Mot de passe temporaire :{" "}
                 <strong>{tempPassword}</strong>
               </div>
+              {emailSent ? (
+                <div className="alert alert-success">
+                  Un email avec les identifiants a été envoyé à{" "}
+                  <strong>{form.email}</strong>.
+                </div>
+              ) : (
+                <div className="alert alert-error">
+                  L&apos;email n&apos;a pas pu être envoyé. Transmettez le mot de
+                  passe manuellement.
+                </div>
+              )}
               <button
                 type="button"
                 className="btn btn-primary"
@@ -138,6 +151,7 @@ export default function TechnicianCreateModal({
                   <label htmlFor="create-email">Email</label>
                   <input
                     id="create-email"
+                    type="email"
                     value={form.email}
                     onChange={(e) => setField("email", e.target.value)}
                     required

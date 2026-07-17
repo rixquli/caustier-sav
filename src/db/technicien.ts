@@ -13,13 +13,20 @@ import type {
 } from "@/types/technicien";
 import type { Technicien } from "@/generated/prisma/client";
 
+type TechnicienWithUser = Technicien;
+
 function parseTechnicienId(id: TechnicienId): number {
   return typeof id === "number" ? id : Number(id);
 }
 
-function mapTechnicienRow(row: Technicien): TechnicienRow {
+function toDbFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === "1";
+}
+
+function mapTechnicienRow(row: TechnicienWithUser): TechnicienRow {
   return {
     id: row.id,
+    user_id: row.userId ?? null,
     name: row.name,
     specialite: row.specialite,
     telephone: row.telephone,
@@ -32,11 +39,13 @@ function mapTechnicienRow(row: Technicien): TechnicienRow {
 
 export function formatTechnicienDisplay(
   row: TechnicienRow | null | undefined,
+  userFlags?: { archived?: boolean; mustChangePassword?: boolean },
 ): TechnicienDisplay | null {
   if (!row) return null;
 
   return {
     id: row.id,
+    userId: row.user_id,
     name: row.name,
     specialite: row.specialite,
     email: row.email,
@@ -47,7 +56,32 @@ export function formatTechnicienDisplay(
     notes: row.notes_technicien,
     notes_admin: row.notes_technicien,
     displayName: row.name,
+    archived: userFlags?.archived,
+    mustChangePassword: userFlags?.mustChangePassword,
   };
+}
+
+async function loadUserFlagsByIds(
+  userIds: string[],
+): Promise<Map<string, { archived: boolean; mustChangePassword: boolean }>> {
+  const unique = [...new Set(userIds.filter(Boolean))];
+  const map = new Map<
+    string,
+    { archived: boolean; mustChangePassword: boolean }
+  >();
+  if (unique.length === 0) return map;
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: unique } },
+    select: { id: true, archived: true, mustChangePassword: true },
+  });
+  for (const user of users) {
+    map.set(user.id, {
+      archived: toDbFlag(user.archived),
+      mustChangePassword: toDbFlag(user.mustChangePassword),
+    });
+  }
+  return map;
 }
 
 export async function createTechnician(
@@ -60,6 +94,7 @@ export async function createTechnician(
       telephone: input.phone?.trim() ?? "",
       email: input.email.trim(),
       notes_technicien: input.notes?.trim() || null,
+      userId: input.userId ?? null,
     },
   });
   return mapTechnicienRow(row);
@@ -83,6 +118,9 @@ export async function updateTechnician(
         data.notes_technicien !== undefined
           ? data.notes_technicien
           : existing.notes_technicien,
+      ...(data.userId !== undefined || data.user_id !== undefined
+        ? { userId: data.userId ?? data.user_id ?? null }
+        : {}),
     },
   });
   return mapTechnicienRow(row);
@@ -102,7 +140,7 @@ export async function deleteTechnician(
 
 export async function listTechnicians({
   search = "",
-}: ListTechniciansParams = {}): Promise<TechnicienRow[]> {
+}: ListTechniciansParams = {}): Promise<TechnicienDisplay[]> {
   const rows = await prisma.technicien.findMany({
     where: search.trim()
       ? {
@@ -115,7 +153,20 @@ export async function listTechnicians({
       : undefined,
     orderBy: { created_at: "desc" },
   });
-  return rows.map(mapTechnicienRow);
+
+  const flags = await loadUserFlagsByIds(
+    rows.map((row) => row.userId).filter((id): id is string => Boolean(id)),
+  );
+
+  return rows
+    .map((row) => {
+      const mapped = mapTechnicienRow(row);
+      const userFlags = mapped.user_id
+        ? flags.get(mapped.user_id)
+        : undefined;
+      return formatTechnicienDisplay(mapped, userFlags);
+    })
+    .filter((row): row is TechnicienDisplay => row !== null);
 }
 
 export async function getTechnicianById(
@@ -125,6 +176,52 @@ export async function getTechnicianById(
     where: { id: parseTechnicienId(id) },
   });
   return row ? mapTechnicienRow(row) : undefined;
+}
+
+export async function getTechnicienDisplayById(
+  id: TechnicienId,
+): Promise<TechnicienDisplay | null> {
+  const row = await prisma.technicien.findUnique({
+    where: { id: parseTechnicienId(id) },
+  });
+  if (!row) return null;
+  const mapped = mapTechnicienRow(row);
+  const flags = mapped.user_id
+    ? (await loadUserFlagsByIds([mapped.user_id])).get(mapped.user_id)
+    : undefined;
+  return formatTechnicienDisplay(mapped, flags);
+}
+
+export async function getTechnicienByUserId(
+  userId: string,
+): Promise<TechnicienRow | null> {
+  const row = await prisma.technicien.findUnique({
+    where: { userId },
+  });
+  return row ? mapTechnicienRow(row) : null;
+}
+
+export async function getTechnicienDisplayByUserId(
+  userId: string,
+): Promise<TechnicienDisplay | null> {
+  const row = await prisma.technicien.findUnique({
+    where: { userId },
+  });
+  if (!row) return null;
+  const mapped = mapTechnicienRow(row);
+  const flags = mapped.user_id
+    ? (await loadUserFlagsByIds([mapped.user_id])).get(mapped.user_id)
+    : undefined;
+  return formatTechnicienDisplay(mapped, flags);
+}
+
+export async function findTechnicianByEmail(
+  email: string,
+): Promise<TechnicienRow | null> {
+  const row = await prisma.technicien.findUnique({
+    where: { email: email.trim() },
+  });
+  return row ? mapTechnicienRow(row) : null;
 }
 
 export async function getTechnicianBySpecialite(
