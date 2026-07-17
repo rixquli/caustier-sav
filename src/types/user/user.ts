@@ -57,7 +57,10 @@ export type CreateClientInput = {
 
 /** Mise à jour partielle d'un utilisateur applicatif. */
 export type UpdateUserInput = Partial<
-  Pick<UserRow, "nom" | "prenom" | "phone" | "adresse" | "name" | "notes_admin">
+  Pick<
+    UserRow,
+    "nom" | "prenom" | "phone" | "adresse" | "name" | "notes_admin" | "role"
+  >
 > & {
   archived?: boolean | number;
   mustChangePassword?: boolean | number;

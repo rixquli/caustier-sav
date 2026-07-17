@@ -63,7 +63,6 @@ export async function middleware(request: NextRequest) {
 
   if (
     mustChangePassword &&
-    user.role === "client" &&
     pathname !== "/compte/changer-mot-de-passe"
   ) {
     return NextResponse.redirect(

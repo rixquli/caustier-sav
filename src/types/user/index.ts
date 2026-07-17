@@ -23,6 +23,7 @@ export type {
   UpdateClientRequest,
   UpdateClientResponse,
   ProfileResponse,
+  ProfileTechnicienSummary,
   UpdateProfileRequest,
   ListClientNotesResponse,
   CreateClientNoteRequest,

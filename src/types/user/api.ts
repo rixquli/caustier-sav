@@ -61,16 +61,26 @@ export type UpdateClientResponse = {
   tempPassword?: string | null;
 };
 
-export type ProfileResponse = {
-  user: UserDisplay;
-  machines: ClientMachineSummary[];
-};
-
 export type UpdateProfileRequest = {
   nom: string;
   prenom?: string;
   phone?: string;
   adresse?: string;
+  email?: string;
+  specialite?: string;
+};
+
+export type ProfileTechnicienSummary = {
+  id: number;
+  specialite: string;
+  telephone: string;
+  email: string;
+};
+
+export type ProfileResponse = {
+  user: UserDisplay;
+  machines: ClientMachineSummary[];
+  technicien?: ProfileTechnicienSummary | null;
 };
 
 export type ListClientNotesResponse = {
