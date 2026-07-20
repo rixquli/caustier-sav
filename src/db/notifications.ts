@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { toIsoString, toIsoStringOrNull } from "./helpers";
-import { listAdmins } from "./user";
+import { findAppUserById, listAdmins } from "./user";
+import { getNotificationHref, NOTIFICATION_TYPES } from "@/lib/notifications";
+import { sendPushToUser } from "@/lib/web-push";
+import { logger } from "@/lib/logger";
 
 type NotificationRow = {
   id: number;
@@ -32,6 +35,48 @@ function mapNotification(row: {
   };
 }
 
+function pushNotificationTitle(type: string): string {
+  if (type === NOTIFICATION_TYPES.DEMANDE_ASSIGNEE) {
+    return "Demande assignée";
+  }
+  if (type === NOTIFICATION_TYPES.NOUVELLE_DEMANDE) {
+    return "Nouvelle demande";
+  }
+  if (type === NOTIFICATION_TYPES.REPONSE_CLIENT) {
+    return "Réponse client";
+  }
+  if (type === NOTIFICATION_TYPES.REPONSE_ADMIN) {
+    return "Réponse SAV";
+  }
+  if (type === NOTIFICATION_TYPES.STATUT_CHANGE) {
+    return "Statut mis à jour";
+  }
+  return "Nouvelle notification";
+}
+
+async function dispatchPushForNotification(
+  notification: NotificationRow,
+): Promise<void> {
+  try {
+    const user = await findAppUserById(notification.user_id);
+    const isAdmin = user?.role === "admin";
+    const url = getNotificationHref(notification, isAdmin);
+
+    await sendPushToUser(notification.user_id, {
+      title: pushNotificationTitle(notification.type),
+      body: notification.message,
+      url,
+      tag: `notif-${notification.id}`,
+    });
+  } catch (err: unknown) {
+    logger.warn("Failed to dispatch Web Push for notification", {
+      notificationId: notification.id,
+      userId: notification.user_id,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
 export async function createNotification({
   userId,
   type,
@@ -51,7 +96,12 @@ export async function createNotification({
       message,
     },
   });
-  return mapNotification(row);
+  const notification = mapNotification(row);
+
+  // Fire-and-forget : ne bloque / n'annule pas la création en DB
+  void dispatchPushForNotification(notification);
+
+  return notification;
 }
 
 export async function notifyAdmins({

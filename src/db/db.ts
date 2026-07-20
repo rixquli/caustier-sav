@@ -628,6 +628,13 @@ export {
 };
 
 export {
+  upsertPushSubscription,
+  listPushSubscriptionsForUser,
+  deletePushSubscriptionByEndpoint,
+  deletePushSubscriptionById,
+} from "./push-subscription";
+
+export {
   createDemande,
   deleteDemande,
   findAwaitingTechnicianResponse,

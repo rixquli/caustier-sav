@@ -9,6 +9,7 @@ import {
   NOTIFICATION_TYPES,
   type NotificationRow,
 } from "@/lib/notifications";
+import { ensurePushSubscription } from "@/lib/push-client";
 
 const POLL_MS = 5_000;
 const TOAST_DURATION_MS = 8_000;
@@ -156,11 +157,17 @@ export default function NotificationBell({ isAdmin }: NotificationBellProps) {
     if (!supportsNotifications()) return;
     if (Notification.permission !== "default") {
       setPermission(Notification.permission);
+      if (Notification.permission === "granted") {
+        void ensurePushSubscription();
+      }
       return;
     }
     try {
       const result = await Notification.requestPermission();
       setPermission(result);
+      if (result === "granted") {
+        void ensurePushSubscription();
+      }
     } catch {
       /* ignore */
     }
@@ -175,6 +182,12 @@ export default function NotificationBell({ isAdmin }: NotificationBellProps) {
     await requestPermissionOnGesture();
     dismissPermissionModal();
   }, [dismissPermissionModal, requestPermissionOnGesture]);
+
+  useEffect(() => {
+    if (!supportsNotifications()) return;
+    if (Notification.permission !== "granted") return;
+    void ensurePushSubscription();
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     try {
