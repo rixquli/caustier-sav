@@ -167,10 +167,6 @@ export default function AdminTechniciensPage() {
             );
             setEditing((prev) => (prev ? { ...prev, ...updated } : prev));
           }}
-          onDeleted={(id) => {
-            setTechnicians((prev) => prev.filter((t) => t.id !== id));
-            setEditing(null);
-          }}
         />
       )}
     </PageLayout>

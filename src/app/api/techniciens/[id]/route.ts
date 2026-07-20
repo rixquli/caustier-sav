@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import {
-  deleteTechnician,
   findTechnicianByEmail,
   getTechnicienDisplayById,
   getTechnicianById,
@@ -155,19 +154,19 @@ export async function DELETE(
     );
   }
 
+  // Soft-archive only: keep the Technicien row so it remains visible
+  // under "Inclure archivés" and the email can be recovered via désarchivage.
   if (existing.userId) {
     await updateAppUser(existing.userId, { archived: true });
   }
 
-  const deleted = await deleteTechnician(id);
-  if (!deleted) {
+  const technicien = await getTechnicienDisplayById(id);
+  if (!technicien) {
     return NextResponse.json(
       { error: "Technicien introuvable." },
       { status: 404 },
     );
   }
 
-  return NextResponse.json({
-    technicien: { ...existing, archived: true },
-  });
+  return NextResponse.json({ technicien: { ...technicien, archived: true } });
 }

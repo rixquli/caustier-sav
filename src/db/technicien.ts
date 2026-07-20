@@ -242,6 +242,10 @@ export async function getNextTechnicianBySpecialite(
     where: {
       specialite,
       ...(excludeNumeric.length > 0 ? { id: { notIn: excludeNumeric } } : {}),
+      OR: [
+        { userId: null },
+        { user: { OR: [{ archived: false }, { archived: null }] } },
+      ],
     },
     orderBy: { created_at: "asc" },
   });

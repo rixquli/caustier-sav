@@ -27,5 +27,4 @@ export type TechnicianEditModalProps = {
   technicien: TechnicienDisplay | null;
   onClose: () => void;
   onUpdated?: (technicien: TechnicienDisplay) => void;
-  onDeleted?: (id: TechnicienDisplay["id"]) => void;
 };

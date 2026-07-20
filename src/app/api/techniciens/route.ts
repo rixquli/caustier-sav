@@ -4,12 +4,14 @@ import {
   createTechnician,
   findTechnicianByEmail,
   formatTechnicienDisplay,
+  getTechnicienByUserId,
   getTechnicienDisplayById,
   listTechnicians,
+  updateTechnician,
 } from "@/db/technicien";
 import { findAppUserByEmail, updateAppUser } from "@/db/user";
 import { sendTechnicianWelcomeEmail } from "@/lib/mail";
-import { generateTempPassword } from "@/lib/password-utils";
+import { generateTempPassword, setUserPassword } from "@/lib/password-utils";
 import { getSessionUser, requireAdmin } from "@/lib/session";
 import type {
   ApiErrorResponse,
@@ -19,6 +21,10 @@ import type {
 } from "@/types/technicien";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isArchivedFlag(value: unknown): boolean {
+  return value === true || value === 1 || value === "1";
+}
 
 export async function GET(
   request: Request,
@@ -73,14 +79,29 @@ export async function POST(
       );
     }
 
-    if (await findAppUserByEmail(trimmedEmail)) {
+    const existingUser = await findAppUserByEmail(trimmedEmail);
+    const existingTechByEmail = await findTechnicianByEmail(trimmedEmail);
+    const existingTechByUser = existingUser
+      ? await getTechnicienByUserId(existingUser.id)
+      : null;
+    const existingTech = existingTechByEmail ?? existingTechByUser;
+    const userIsArchived = Boolean(
+      existingUser && isArchivedFlag(existingUser.archived),
+    );
+
+    // Compte actif déjà pris → refus.
+    if (existingUser && !userIsArchived) {
       return NextResponse.json(
-        { error: "Cet email est déjà utilisé." },
+        {
+          error: existingTech
+            ? "Cet email est déjà utilisé par un technicien."
+            : "Cet email est déjà utilisé.",
+        },
         { status: 409 },
       );
     }
 
-    if (await findTechnicianByEmail(trimmedEmail)) {
+    if (existingTech && !userIsArchived) {
       return NextResponse.json(
         { error: "Cet email est déjà utilisé par un technicien." },
         { status: 409 },
@@ -88,44 +109,100 @@ export async function POST(
     }
 
     const tempPassword = generateTempPassword();
+    let technicienId: number;
 
-    await getAuth().api.signUpEmail({
-      body: {
-        email: trimmedEmail,
-        password: tempPassword,
+    // Compte archivé : réactivation (fiche tech existante ou orpheline).
+    if (existingUser && userIsArchived) {
+      await setUserPassword(existingUser.id, tempPassword);
+      await updateAppUser(existingUser.id, {
+        role: "admin",
         name: trimmedName,
-      },
-    });
+        nom: trimmedName,
+        phone: phone?.trim() || null,
+        mustChangePassword: 1,
+        archived: 0,
+      });
 
-    const createdUser = await findAppUserByEmail(trimmedEmail);
-    if (!createdUser) {
-      return NextResponse.json(
-        { error: "Une erreur est survenue." },
-        { status: 500 },
-      );
+      if (existingTech) {
+        const updated = await updateTechnician(existingTech.id, {
+          name: trimmedName,
+          specialite,
+          phone,
+          email: trimmedEmail,
+          notes_technicien: notes?.trim() || null,
+          userId: existingUser.id,
+        });
+        if (!updated) {
+          return NextResponse.json(
+            { error: "Une erreur est survenue." },
+            { status: 500 },
+          );
+        }
+        technicienId = updated.id;
+      } else {
+        const row = await createTechnician({
+          name: trimmedName,
+          email: trimmedEmail,
+          specialite,
+          phone,
+          notes,
+          userId: existingUser.id,
+        });
+        if (!row) {
+          return NextResponse.json(
+            { error: "Une erreur est survenue." },
+            { status: 500 },
+          );
+        }
+        technicienId = row.id;
+      }
+    } else {
+      // Nouvel email : création classique.
+      await getAuth().api.signUpEmail({
+        body: {
+          email: trimmedEmail,
+          password: tempPassword,
+          name: trimmedName,
+        },
+      });
+
+      const createdUser = await findAppUserByEmail(trimmedEmail);
+      if (!createdUser) {
+        return NextResponse.json(
+          { error: "Une erreur est survenue." },
+          { status: 500 },
+        );
+      }
+
+      await updateAppUser(createdUser.id, {
+        role: "admin",
+        name: trimmedName,
+        nom: trimmedName,
+        phone: phone?.trim() || null,
+        mustChangePassword: 1,
+        archived: 0,
+      });
+
+      const row = await createTechnician({
+        name: trimmedName,
+        email: trimmedEmail,
+        specialite,
+        phone,
+        notes,
+        userId: createdUser.id,
+      });
+      if (!row) {
+        return NextResponse.json(
+          { error: "Une erreur est survenue." },
+          { status: 500 },
+        );
+      }
+      technicienId = row.id;
     }
 
-    await updateAppUser(createdUser.id, {
-      role: "admin",
-      name: trimmedName,
-      nom: trimmedName,
-      phone: phone?.trim() || null,
-      mustChangePassword: 1,
-      archived: 0,
-    });
-
-    const row = await createTechnician({
-      name: trimmedName,
-      email: trimmedEmail,
-      specialite,
-      phone,
-      notes,
-      userId: createdUser.id,
-    });
-
     const technicien =
-      (row ? await getTechnicienDisplayById(row.id) : null) ??
-      formatTechnicienDisplay(row ?? null);
+      (await getTechnicienDisplayById(technicienId)) ??
+      formatTechnicienDisplay(null);
 
     if (!technicien) {
       return NextResponse.json(

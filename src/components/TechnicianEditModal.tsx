@@ -5,7 +5,6 @@ import Link from "next/link";
 import { FiX } from "react-icons/fi";
 import type {
   ApiErrorResponse,
-  DeleteTechnicienResponse,
   TechnicianEditFormState,
   TechnicianEditModalProps,
   TechnicienDetailResponse,
@@ -27,7 +26,6 @@ export default function TechnicianEditModal({
   technicien,
   onClose,
   onUpdated,
-  onDeleted,
 }: TechnicianEditModalProps) {
   const [form, setForm] = useState<TechnicianEditFormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
@@ -122,33 +120,15 @@ export default function TechnicianEditModal({
     }
   }
 
-  async function handleDelete() {
-    if (!technicianId) return;
-    const confirmed = window.confirm(
-      `Supprimer définitivement « ${technicien.name} » ? Cette action est irréversible.`,
-    );
-    if (!confirmed) return;
-
+  async function handleArchive() {
+    const next = !form.archived;
     setDeleting(true);
-    setError("");
-    setMessage("");
     try {
-      const res = await fetch(`/api/techniciens/${technicianId}`, {
-        method: "DELETE",
-      });
-      const data = (await res.json()) as
-        | DeleteTechnicienResponse
-        | ApiErrorResponse;
-
-      if (!res.ok) {
-        setError("error" in data ? data.error : "Une erreur est survenue.");
-        return;
-      }
-
-      onDeleted?.(technicianId);
-      onClose();
-    } catch {
-      setError("Une erreur est survenue.");
+      const data = await patch(
+        { archived: next },
+        next ? "Technicien archivé." : "Technicien désarchivé.",
+      );
+      if (data) setField("archived", next);
     } finally {
       setDeleting(false);
     }
@@ -258,11 +238,17 @@ export default function TechnicianEditModal({
                   </button>
                   <button
                     type="button"
-                    className="btn btn-danger"
+                    className="btn btn-secondary"
                     disabled={saving || deleting}
-                    onClick={handleDelete}
+                    onClick={handleArchive}
                   >
-                    {deleting ? "Suppression…" : "Supprimer"}
+                    {deleting
+                      ? form.archived
+                        ? "Désarchivage…"
+                        : "Archivage…"
+                      : form.archived
+                        ? "Désarchiver"
+                        : "Archiver"}
                   </button>
                 </div>
                 <Link
